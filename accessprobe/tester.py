@@ -10,6 +10,7 @@ import httpx
 from .models import Parameter, TestResult, Finding, FindingSeverity, UserSession
 
 from .session import SessionManager
+from .detector import IDORDetector
 
 
 class IDORTester:
@@ -17,6 +18,7 @@ class IDORTester:
 
     def __init__(self, session_manager: SessionManager) -> None:
         self.session_manager = session_manager
+        self.detector = IDORDetector()
         self.results: list[TestResult] = []
 
     async def test_parameter(
@@ -29,7 +31,7 @@ class IDORTester:
     ) -> TestResult:
         """Test a single parameter by swapping its value across different roles.
 
-        This is the core IDOR testing logic.
+        Now uses IDORDetector for response analysis.
         """
         test_result = TestResult(parameter=parameter)
         test_result.tested_sessions = [original_session] + test_sessions
@@ -39,43 +41,53 @@ class IDORTester:
             test_result.error = f"Original session '{original_session}' not found"
             return test_result
 
-        # Get auth for original session
         original_auth = self.session_manager.get_auth_kwargs(original_session)
 
         try:
             async with httpx.AsyncClient(**original_auth, follow_redirects=True, timeout=30.0) as client:
-                # First, make request with original value
                 original_resp = await self._make_request(
                     client, method, target_url, parameter
                 )
-                test_result.parameter.original_value = parameter.value
 
                 findings = []
 
-                # Now test with values from other roles
                 for test_role in test_sessions:
                     test_auth = self.session_manager.get_auth_kwargs(test_role)
                     if not test_auth:
                         continue
 
                     async with httpx.AsyncClient(**test_auth, follow_redirects=True, timeout=30.0) as test_client:
-                        # Modify the parameter value (basic version: use value from original for now)
-                        # In later versions we will intelligently pick values from other sessions
+                        # For now we test with the same value (future: smart value selection)
                         modified_param = parameter.model_copy()
-                        # TODO: Implement smart value selection from other sessions
 
                         modified_resp = await self._make_request(
                             test_client, method, target_url, modified_param
                         )
 
-                        finding = Finding(
-                            parameter=modified_param,
-                            tested_roles=[original_session, test_role],
-                            original_response_code=original_resp.status_code if original_resp else None,
-                            modified_response_code=modified_resp.status_code if modified_resp else None,
-                            is_vulnerable=False,  # Detection logic comes later
-                            severity=FindingSeverity.MEDIUM,
+                        # === Use Detector ===
+                        analysis = self.detector.analyze_responses(
+                            original_resp,
+                            modified_resp,
+                            original_session,
+                            test_role,
                         )
+
+                        finding = self.detector.create_finding(
+                            modified_param,
+                            analysis,
+                            original_session,
+                            test_role,
+                        )
+
+                        # Store extra info
+                        finding.original_response_code = (
+                            original_resp.status_code if original_resp else None
+                        )
+                        finding.modified_response_code = (
+                            modified_resp.status_code if modified_resp else None
+                        )
+                        finding.similarity_score = analysis.get("similarity")
+
                         findings.append(finding)
 
                 test_result.findings = findings
@@ -99,12 +111,8 @@ class IDORTester:
             if parameter.location.value == "query":
                 params = {parameter.name: parameter.value}
                 resp = await client.request(method, url, params=params)
-            elif parameter.location.value == "path":
-                # For path parameters, we assume the URL already contains a placeholder
-                # In real usage we would replace it properly
-                resp = await client.request(method, url)
             else:
-                # Body / Header / Cookie - basic implementation for now
+                # TODO: Improve path, body, header, cookie parameter handling
                 resp = await client.request(method, url)
 
             return resp
