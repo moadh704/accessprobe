@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
-from .models import Parameter, TestResult, Finding, FindingSeverity, UserSession
+from .models import Parameter, TestResult, FindingSeverity
 
 from .session import SessionManager
 from .detector import IDORDetector
@@ -28,16 +27,17 @@ class IDORTester:
         original_session: str,
         test_sessions: list[str],
         method: str = "GET",
+        values_to_test: Optional[list[Any]] = None,
     ) -> TestResult:
-        """Test a single parameter by swapping its value across different roles.
+        """Test a parameter across roles, optionally with specific values to try.
 
-        Now uses IDORDetector for response analysis.
+        If values_to_test is provided, those values will be tested on the test_sessions.
+        Otherwise falls back to basic behavior.
         """
         test_result = TestResult(parameter=parameter)
         test_result.tested_sessions = [original_session] + test_sessions
 
-        original_session_obj = self.session_manager.get_session(original_session)
-        if not original_session_obj:
+        if not self.session_manager.get_session(original_session):
             test_result.error = f"Original session '{original_session}' not found"
             return test_result
 
@@ -51,44 +51,46 @@ class IDORTester:
 
                 findings = []
 
+                # Determine which values to test on other roles
+                values = values_to_test or [parameter.value]
+
                 for test_role in test_sessions:
                     test_auth = self.session_manager.get_auth_kwargs(test_role)
                     if not test_auth:
                         continue
 
-                    async with httpx.AsyncClient(**test_auth, follow_redirects=True, timeout=30.0) as test_client:
-                        # For now we test with the same value (future: smart value selection)
-                        modified_param = parameter.model_copy()
+                    for test_value in values:
+                        modified_param = parameter.model_copy(update={"value": test_value})
 
-                        modified_resp = await self._make_request(
-                            test_client, method, target_url, modified_param
-                        )
+                        async with httpx.AsyncClient(
+                            **test_auth, follow_redirects=True, timeout=30.0
+                        ) as test_client:
+                            modified_resp = await self._make_request(
+                                test_client, method, target_url, modified_param
+                            )
 
-                        # === Use Detector ===
-                        analysis = self.detector.analyze_responses(
-                            original_resp,
-                            modified_resp,
-                            original_session,
-                            test_role,
-                        )
+                            analysis = self.detector.analyze_responses(
+                                original_resp,
+                                modified_resp,
+                                original_session,
+                                test_role,
+                            )
 
-                        finding = self.detector.create_finding(
-                            modified_param,
-                            analysis,
-                            original_session,
-                            test_role,
-                        )
+                            finding = self.detector.create_finding(
+                                modified_param,
+                                analysis,
+                                original_session,
+                                test_role,
+                            )
+                            finding.original_response_code = (
+                                original_resp.status_code if original_resp else None
+                            )
+                            finding.modified_response_code = (
+                                modified_resp.status_code if modified_resp else None
+                            )
+                            finding.similarity_score = analysis.get("similarity")
 
-                        # Store extra info
-                        finding.original_response_code = (
-                            original_resp.status_code if original_resp else None
-                        )
-                        finding.modified_response_code = (
-                            modified_resp.status_code if modified_resp else None
-                        )
-                        finding.similarity_score = analysis.get("similarity")
-
-                        findings.append(finding)
+                            findings.append(finding)
 
                 test_result.findings = findings
                 test_result.success = True
@@ -106,16 +108,33 @@ class IDORTester:
         url: str,
         parameter: Parameter,
     ) -> Optional[httpx.Response]:
-        """Helper to send a request with the parameter in the correct location."""
+        """Send request with parameter in the correct location."""
         try:
             if parameter.location.value == "query":
                 params = {parameter.name: parameter.value}
-                resp = await client.request(method, url, params=params)
-            else:
-                # TODO: Improve path, body, header, cookie parameter handling
-                resp = await client.request(method, url)
+                return await client.request(method, url, params=params)
 
-            return resp
+            elif parameter.location.value == "path":
+                # Basic path parameter replacement
+                if "{" + parameter.name + "}" in url:
+                    formatted_url = url.replace(
+                        "{" + parameter.name + "}", str(parameter.value)
+                    )
+                    return await client.request(method, formatted_url)
+                else:
+                    # Fallback if no placeholder in URL
+                    return await client.request(method, url)
+
+            elif parameter.location.value in ("body", "json"):
+                # Simple JSON body support
+                return await client.request(
+                    method, url, json={parameter.name: parameter.value}
+                )
+
+            else:
+                # Header / Cookie - basic support
+                return await client.request(method, url)
+
         except Exception:
             return None
 
