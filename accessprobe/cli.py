@@ -35,32 +35,23 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # ==================== SCAN COMMAND ====================
-    scan_parser = subparsers.add_parser("scan", help="Run IDOR tests against a target")
-    scan_parser.add_argument("--url", required=True, help="Target URL to test")
-    scan_parser.add_argument("--param", required=True, help="Parameter name to test (e.g. user_id, id)")
+    scan_parser = subparsers.add_parser("scan", help="Run IDOR test on a target")
+    scan_parser.add_argument("--url", required=True, help="Target base URL")
+    scan_parser.add_argument("--param", required=True, help="Parameter name to test")
+    scan_parser.add_argument("--value", required=True, help="Original parameter value")
     scan_parser.add_argument(
-        "--location",
-        default="query",
-        choices=["query", "path", "body"],
-        help="Parameter location (default: query)",
+        "--location", default="query", choices=["query", "path", "body"],
+        help="Parameter location"
     )
+    scan_parser.add_argument("--original-role", default="user", help="Name of the low-privilege role")
     scan_parser.add_argument(
-        "--value", required=True, type=str, help="Original value of the parameter"
+        "--test-roles", nargs="+", default=["admin"], help="Roles to test against"
     )
+    scan_parser.add_argument("--method", default="GET", help="HTTP method")
     scan_parser.add_argument(
-        "--original-role",
-        default="user",
-        help="Name of the original/low-privilege role",
+        "--cookie", help="Cookie string for original role (format: name=value; name2=value2)"
     )
-    scan_parser.add_argument(
-        "--test-roles",
-        nargs="+",
-        default=["admin"],
-        help="Roles to test the parameter against (space separated)",
-    )
-    scan_parser.add_argument(
-        "--method", default="GET", help="HTTP method to use"
-    )
+    scan_parser.add_argument("--report", help="Path to save JSON report")
 
     args = parser.parse_args()
 
@@ -73,27 +64,82 @@ def main() -> None:
         asyncio.run(run_scan(args))
 
 
+def parse_cookie_string(cookie_str: str) -> dict:
+    """Parse simple cookie string into dict."""
+    cookies = {}
+    if not cookie_str:
+        return cookies
+    for pair in cookie_str.split(";"):
+        if "=" in pair:
+            k, v = pair.strip().split("=", 1)
+            cookies[k] = v
+    return cookies
+
+
 def run_scan(args: argparse.Namespace) -> None:
-    """Execute the scan command."""
+    """Run an IDOR scan from CLI."""
     from accessprobe.models import Parameter, ParameterLocation, UserSession
     from accessprobe.session import SessionManager
     from accessprobe.tester import IDORTester
+    from accessprobe.reporter import ReportGenerator
 
-    console.print(f"[bold cyan]Starting AccessProbe Scan[/bold cyan]")
-    console.print(f"URL: {args.url}")
-    console.print(f"Parameter: {args.param} ({args.location})")
-    console.print(f"Original value: {args.value}")
-    console.print(f"Testing roles: {args.test_roles} against '{args.original_role}'\n")
+    console.print("[bold cyan]AccessProbe Scan Started[/bold cyan]\n")
 
-    # Note: For full functionality, sessions should be loaded from config or interactively.
-    # This is a simplified version for demonstration.
-    console.print(
-        "[yellow]Note:[/yellow] Full session/cookie support will be added in a future update."
+    # Create session for original role
+    original_cookies = parse_cookie_string(args.cookie) if args.cookie else {}
+    original_session = UserSession(
+        name=args.original_role,
+        cookies=original_cookies,
+        description="Original / low-privilege role"
     )
-    console.print("For now, use the Python API (see examples/basic_idor_test.py).\n")
 
-    # Placeholder for future full implementation
-    console.print("[green]Scan command structure is ready.[/green] This will become fully functional soon.")
+    session_manager = SessionManager()
+    session_manager.add_session(original_session)
+
+    # Create placeholder sessions for test roles (user will need to provide cookies in real use)
+    for role in args.test_roles:
+        # In real usage, we would load proper cookies for each role
+        session_manager.add_session(UserSession(name=role, cookies={})) 
+
+    # Create parameter
+    location = ParameterLocation(args.location)
+    param = Parameter(
+        name=args.param,
+        location=location,
+        value=args.value,
+    )
+
+    # Run test
+    tester = IDORTester(session_manager)
+
+    try:
+        result = asyncio.run(
+            tester.test_parameter(
+                parameter=param,
+                target_url=args.url,
+                original_session=args.original_role,
+                test_sessions=args.test_roles,
+                method=args.method,
+            )
+        )
+
+        # Generate report
+        reporter = ReportGenerator([result])
+        reporter.print_summary()
+
+        if args.report:
+            reporter.save_json(args.report)
+            console.print(f"[green]Report saved to {args.report}[/green]")
+
+        # Show vulnerable findings
+        vulnerable = [f for f in result.findings if f.is_vulnerable]
+        if vulnerable:
+            console.print(f"\n[bold red]Potential IDORs found: {len(vulnerable)}[/bold red]")
+        else:
+            console.print("\n[green]No obvious IDORs detected in this run.[/green]")
+
+    except Exception as e:
+        console.print(f"[red]Error during scan:[/red] {e}")
 
 
 if __name__ == "__main__":
