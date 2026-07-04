@@ -1,4 +1,4 @@
-"""Detection logic for identifying IDOR and Broken Access Control vulnerabilities."""
+"""Improved detection logic for IDOR and Broken Access Control."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from .models import Finding, FindingSeverity
 
 
 class IDORDetector:
-    """Compares responses from different roles to detect potential IDORs."""
+    """Advanced detector for authorization bypasses and IDOR vulnerabilities."""
 
-    def __init__(self, similarity_threshold: float = 0.85) -> None:
+    def __init__(self, similarity_threshold: float = 0.82) -> None:
         self.similarity_threshold = similarity_threshold
 
     def analyze_responses(
@@ -23,67 +23,84 @@ class IDORDetector:
         original_role: str,
         test_role: str,
     ) -> dict:
-        """Compare two responses and return analysis results."""
+        """Analyze two responses and return detailed detection results."""
         if not original_response or not modified_response:
-            return {
-                "is_vulnerable": False,
-                "reason": "One or both responses failed",
-                "similarity": 0.0,
-                "severity": FindingSeverity.LOW,
-            }
+            return self._failed_analysis()
 
-        original_code = original_response.status_code
-        modified_code = modified_response.status_code
+        orig_code = original_response.status_code
+        mod_code = modified_response.status_code
+        orig_len = len(original_response.content)
+        mod_len = len(modified_response.content)
 
-        # Status code analysis
-        status_diff = original_code != modified_code
+        # === Core Signals ===
+        status_changed = orig_code != mod_code
+        length_diff = abs(orig_len - mod_len)
 
-        # Content similarity
+        # Text similarity
         try:
-            original_text = original_response.text[:2000]  # Limit for performance
-            modified_text = modified_response.text[:2000]
-            similarity = difflib.SequenceMatcher(None, original_text, modified_text).ratio()
+            orig_text = original_response.text[:3000]
+            mod_text = modified_response.text[:3000]
+            similarity = difflib.SequenceMatcher(None, orig_text, mod_text).ratio()
         except Exception:
             similarity = 0.0
 
-        # Length difference
-        length_diff = abs(len(original_response.content) - len(modified_response.content))
-
-        # Decision logic
+        # === Detection Rules ===
         is_vulnerable = False
-        reason = "No clear signs of IDOR"
+        confidence = 0.0
+        reasons = []
         severity = FindingSeverity.LOW
 
-        if status_diff:
-            if modified_code in (200, 201, 202) and original_code in (401, 403, 404):
+        # Rule 1: Status code improvement (very strong signal)
+        if status_changed:
+            if mod_code in (200, 201, 202) and orig_code in (401, 403, 404):
                 is_vulnerable = True
-                reason = f"Access granted to {test_role} when {original_role} was denied"
+                confidence = 0.92
+                reasons.append(f"Access granted to {test_role} (status {mod_code}) while {original_role} got {orig_code}")
                 severity = FindingSeverity.HIGH
-            elif modified_code == 200 and original_code != 200:
+
+            elif mod_code == 200 and orig_code != 200:
                 is_vulnerable = True
-                reason = "Different success status codes between roles"
+                confidence = 0.75
+                reasons.append("Successful response only from higher privilege role")
                 severity = FindingSeverity.MEDIUM
 
-        if similarity > self.similarity_threshold and not status_diff:
-            # Very similar successful responses from different privilege levels
-            if original_code == 200 and modified_code == 200:
-                is_vulnerable = True
-                reason = "Highly similar successful responses from different roles"
+        # Rule 2: High similarity + both successful (classic IDOR)
+        if similarity >= self.similarity_threshold and orig_code == 200 and mod_code == 200:
+            is_vulnerable = True
+            confidence = max(confidence, 0.78)
+            reasons.append("Highly similar successful responses from different privilege levels")
+            if severity == FindingSeverity.LOW:
                 severity = FindingSeverity.MEDIUM
 
-        if length_diff > 500 and similarity < 0.6:
-            # Significant content difference
-            if original_code == 200 or modified_code == 200:
+        # Rule 3: Large content difference with success
+        if length_diff > 800 and similarity < 0.55:
+            if orig_code == 200 or mod_code == 200:
                 is_vulnerable = True
-                reason = "Significant content difference between roles"
-                severity = FindingSeverity.MEDIUM
+                confidence = max(confidence, 0.65)
+                reasons.append("Significant content difference between roles")
+                if severity == FindingSeverity.LOW:
+                    severity = FindingSeverity.MEDIUM
+
+        # Rule 4: Keyword analysis (bonus confidence)
+        keywords = ["admin", "success", "profile", "dashboard", "settings", "delete", "edit"]
+        mod_lower = modified_response.text.lower()
+        keyword_hits = sum(1 for kw in keywords if kw in mod_lower)
+
+        if keyword_hits >= 2 and mod_code == 200:
+            confidence = min(1.0, confidence + 0.08)
+            reasons.append(f"Interesting keywords found in response ({keyword_hits} hits)")
+
+        # Final confidence adjustment
+        if is_vulnerable and confidence < 0.5:
+            confidence = 0.55
 
         return {
             "is_vulnerable": is_vulnerable,
-            "reason": reason,
-            "similarity": round(similarity, 3),
+            "confidence": round(confidence, 2),
             "severity": severity,
-            "status_diff": status_diff,
+            "reasons": reasons,
+            "similarity": round(similarity, 3),
+            "status_changed": status_changed,
             "length_diff": length_diff,
         }
 
@@ -94,12 +111,26 @@ class IDORDetector:
         original_role: str,
         test_role: str,
     ) -> Finding:
-        """Create a Finding object from analysis results."""
+        """Create Finding from analysis."""
+        evidence = "; ".join(analysis.get("reasons", [])) if analysis.get("reasons") else analysis.get("reason", "")
+
         return Finding(
             parameter=parameter,
             tested_roles=[original_role, test_role],
             is_vulnerable=analysis["is_vulnerable"],
             severity=analysis["severity"],
-            evidence=analysis["reason"],
+            evidence=evidence,
             similarity_score=analysis.get("similarity"),
+            details={"confidence": analysis.get("confidence", 0.0)},
         )
+
+    def _failed_analysis(self) -> dict:
+        return {
+            "is_vulnerable": False,
+            "confidence": 0.0,
+            "severity": FindingSeverity.LOW,
+            "reasons": ["Response failed or missing"],
+            "similarity": 0.0,
+            "status_changed": False,
+            "length_diff": 0,
+        }
