@@ -1,8 +1,13 @@
 """Basic usage example for AccessProbe.
 
-This script demonstrates how to use SessionManager + IDORTester together.
+This script shows how to use the core components:
+- UserSession + SessionManager
+- Parameter
+- IDORTester + IDORDetector
 
-Note: Use this only on applications you are authorized to test.
+Run this after: pip install -e .
+
+WARNING: Only use on systems you are authorized to test.
 """
 
 import asyncio
@@ -10,95 +15,109 @@ import asyncio
 from rich.console import Console
 from rich.table import Table
 
-# Import from the package (after `pip install -e .`)
 try:
     from accessprobe.models import Parameter, ParameterLocation, UserSession
     from accessprobe.session import SessionManager
     from accessprobe.tester import IDORTester
 except ImportError:
-    print("Please install the package first: pip install -e .")
+    print("Please run: pip install -e .")
     exit(1)
 
 console = Console()
 
 
 async def main():
-    console.print("[bold cyan]AccessProbe - Basic IDOR Testing Example[/bold cyan]\n")
+    console.rule("[bold cyan]AccessProbe - Basic IDOR Testing Example[/bold cyan]")
 
-    # 1. Create sessions for different roles
-    user_session = UserSession(
-        name="user",
-        cookies={"session": "user_session_cookie_here"},
-        headers={"User-Agent": "AccessProbe/0.1"},
-        description="Low privilege user",
-    )
+    # ============================================
+    # 1. Define multiple roles/sessions
+    # ============================================
+    sessions = [
+        UserSession(
+            name="low_priv",
+            cookies={"session": "low_priv_session_value"},
+            description="Regular user account",
+        ),
+        UserSession(
+            name="high_priv",
+            cookies={"session": "high_priv_session_value"},
+            description="Administrator account",
+        ),
+    ]
 
-    admin_session = UserSession(
-        name="admin",
-        cookies={"session": "admin_session_cookie_here"},
-        headers={"User-Agent": "AccessProbe/0.1"},
-        description="High privilege admin",
-    )
-
-    # 2. Add sessions to the manager
     session_manager = SessionManager()
-    session_manager.add_session(user_session)
-    session_manager.add_session(admin_session)
+    for s in sessions:
+        session_manager.add_session(s)
 
-    console.print(f"[green]✓[/green] Loaded {len(session_manager)} sessions: {session_manager.list_sessions()}")
+    console.print(f"[green]✓[/green] Loaded sessions: {session_manager.list_sessions()}")
 
-    # 3. Define a parameter to test (example: numeric ID in query string)
+    # ============================================
+    # 2. Define the parameter we want to test
+    # ============================================
     param = Parameter(
-        name="id",
+        name="user_id",
         location=ParameterLocation.QUERY,
-        value=123,  # Original value seen as 'user'
-        description="User profile ID parameter",
+        value=42,  # Value observed while logged in as low_priv
+        description="ID of the user profile being viewed",
     )
 
-    # 4. Create the tester
+    # ============================================
+    # 3. Create tester and run test
+    # ============================================
     tester = IDORTester(session_manager)
 
-    # Example target URL (replace with a real authorized target)
-    target_url = "https://vulnerable-app.example.com/profile"
+    target_url = "https://target.example.com/profile"  # <-- Change this
 
-    console.print(f"\n[bold]Testing parameter:[/bold] {param.name} (location: {param.location.value})")
-    console.print(f"[bold]Target:[/bold] {target_url}\n")
+    console.print(f"\n[bold]Target URL:[/bold] {target_url}")
+    console.print(f"[bold]Parameter:[/bold] {param.name} (location={param.location.value})")
+    console.print(f"[bold]Original value (low_priv):[/bold] {param.value}\n")
 
-    # 5. Run the test
-    # We test the 'user' value against the 'admin' role
+    # Test the value seen as low_priv against the high_priv role
+    # We can also pass additional values to test
     result = await tester.test_parameter(
         parameter=param,
         target_url=target_url,
-        original_session="user",
-        test_sessions=["admin"],
+        original_session="low_priv",
+        test_sessions=["high_priv"],
         method="GET",
+        values_to_test=[42, 100, 999],  # Try these values as high_priv
     )
 
-    # 6. Display results
-    console.print("[bold underline]Results:[/bold underline]\n")
+    # ============================================
+    # 4. Display results nicely
+    # ============================================
+    console.rule("[bold]Test Results[/bold]")
 
-    table = Table(title="Findings")
-    table.add_column("Test Role", style="cyan")
-    table.add_column("Test Value", style="magenta")
-    table.add_column("Vulnerable?", style="green")
+    if result.error:
+        console.print(f"[red]Error during test:[/red] {result.error}")
+        return
+
+    table = Table(title="IDOR Test Findings")
+    table.add_column("Tested As", style="cyan")
+    table.add_column("Value Tested", style="magenta")
+    table.add_column("Status", justify="center")
+    table.add_column("Vulnerable", justify="center")
     table.add_column("Severity", style="yellow")
-    table.add_column("Evidence", style="white")
+    table.add_column("Evidence / Reason")
 
     for finding in result.findings:
+        vulnerable = "[bold red]Yes[/bold red]" if finding.is_vulnerable else "[green]No[/green]"
         table.add_row(
             finding.tested_roles[-1] if finding.tested_roles else "-",
             str(finding.parameter.value),
-            "[red]Yes[/red]" if finding.is_vulnerable else "[green]No[/green]",
-            finding.severity.value,
+            str(finding.modified_response_code or "-"),
+            vulnerable,
+            finding.severity.value.upper(),
             finding.evidence or "-",
         )
 
     console.print(table)
 
-    if result.error:
-        console.print(f"[red]Error:[/red] {result.error}")
+    # Summary
+    vulnerable_count = sum(1 for f in result.findings if f.is_vulnerable)
+    console.print(f"\n[bold]Summary:[/bold] {vulnerable_count} potential IDOR(s) detected out of {len(result.findings)} tests.")
 
-    console.print("\n[italic dim]Note: Replace cookies and target URL with real authorized test data.[/italic dim]")
+    console.print("\n[italic dim]Tip: Replace cookies and target URL with real data from an authorized engagement.[/italic dim]")
 
 
 if __name__ == "__main__":
