@@ -1,7 +1,8 @@
-"""Core IDOR Testing Engine with advanced value selection."""
+"""Core IDOR Testing Engine with rate limiting and better robustness."""
 
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import Any, Optional
 
@@ -13,60 +14,58 @@ from .detector import IDORDetector
 
 
 class IDORTester:
-    """Main engine for testing parameters across different user roles.
+    """Main engine for IDOR testing with rate limiting support."""
 
-    Features improved value selection for better IDOR detection.
-    """
-
-    def __init__(self, session_manager: SessionManager) -> None:
+    def __init__(self, session_manager: SessionManager, rate_limit: float = 0.5) -> None:
+        """
+        Args:
+            session_manager: SessionManager instance
+            rate_limit: Minimum delay between requests in seconds (default 0.5s)
+        """
         self.session_manager = session_manager
         self.detector = IDORDetector()
         self.results: list[TestResult] = []
+        self.rate_limit = rate_limit  # seconds between requests
+        self._last_request_time = 0.0
+
+    async def _apply_rate_limit(self):
+        """Simple rate limiting between requests."""
+        if self.rate_limit > 0:
+            now = asyncio.get_event_loop().time()
+            time_since_last = now - self._last_request_time
+            if time_since_last < self.rate_limit:
+                await asyncio.sleep(self.rate_limit - time_since_last)
+            self._last_request_time = asyncio.get_event_loop().time()
 
     def _extract_potential_ids(self, text: str) -> list[str]:
-        """Extract potential ID-like values from response text."""
+        """Extract potential ID values from text."""
         ids = set()
-
-        # Numeric IDs
         numeric = re.findall(r'\b(\d{2,10})\b', text)
         ids.update(numeric)
 
-        # UUIDs
         uuids = re.findall(
             r'\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b', text
         )
         ids.update(uuids)
 
-        # Common ID patterns in JSON
         json_ids = re.findall(r'["\'](?:id|user_id|profile_id|item_id)["\']\s*:\s*["\']?([\w-]+)["\']?', text)
         ids.update(json_ids)
 
         return list(ids)
 
-    def _generate_smart_candidates(
-        self, original_value: Any, response_text: str = ""
-    ) -> list[Any]:
-        """Generate smart candidate values for testing."""
+    def _generate_smart_candidates(self, original_value: Any, response_text: str = "") -> list[Any]:
+        """Generate candidate values for testing."""
         candidates = [original_value]
 
-        # Extract IDs from previous response if available
         if response_text:
             extracted = self._extract_potential_ids(response_text)
             candidates.extend(extracted)
 
-        # Numeric ID variations
         if str(original_value).isdigit():
             val = int(original_value)
             for offset in [1, -1, 5, 10, 100]:
                 candidates.append(str(val + offset))
-            candidates.append(str(val * 2))
 
-        # UUID variation (if original looks like UUID)
-        if re.match(r'^[0-9a-fA-F-]{36}$', str(original_value)):
-            # Keep original + try a few variations (in real tool we could generate fake ones)
-            pass
-
-        # Clean and deduplicate
         seen = set()
         unique = []
         for v in candidates:
@@ -75,7 +74,7 @@ class IDORTester:
                 seen.add(v_str)
                 unique.append(v_str)
 
-        return unique[:15]  # Limit to avoid too many requests
+        return unique[:12]
 
     async def test_parameter(
         self,
@@ -86,7 +85,7 @@ class IDORTester:
         method: str = "GET",
         values_to_test: Optional[list[Any]] = None,
     ) -> TestResult:
-        """Test a parameter across roles using smart value selection."""
+        """Test parameter with rate limiting."""
         test_result = TestResult(parameter=parameter)
         test_result.tested_sessions = [original_session] + test_sessions
 
@@ -98,14 +97,11 @@ class IDORTester:
 
         try:
             async with httpx.AsyncClient(**original_auth, follow_redirects=True, timeout=30.0) as client:
+                await self._apply_rate_limit()
                 original_resp = await self._make_request(client, method, target_url, parameter)
                 original_text = original_resp.text if original_resp else ""
 
-                # Generate smart candidates
-                if values_to_test:
-                    values = values_to_test
-                else:
-                    values = self._generate_smart_candidates(parameter.value, original_text)
+                values = values_to_test or self._generate_smart_candidates(parameter.value, original_text)
 
                 findings = []
 
@@ -118,9 +114,8 @@ class IDORTester:
                         modified_param = parameter.model_copy(update={"value": test_value})
 
                         async with httpx.AsyncClient(**test_auth, follow_redirects=True, timeout=30.0) as test_client:
-                            modified_resp = await self._make_request(
-                                test_client, method, target_url, modified_param
-                            )
+                            await self._apply_rate_limit()
+                            modified_resp = await self._make_request(test_client, method, target_url, modified_param)
 
                             analysis = self.detector.analyze_responses(
                                 original_resp, modified_resp, original_session, test_role
@@ -129,12 +124,8 @@ class IDORTester:
                             finding = self.detector.create_finding(
                                 modified_param, analysis, original_session, test_role
                             )
-                            finding.original_response_code = (
-                                original_resp.status_code if original_resp else None
-                            )
-                            finding.modified_response_code = (
-                                modified_resp.status_code if modified_resp else None
-                            )
+                            finding.original_response_code = original_resp.status_code if original_resp else None
+                            finding.modified_response_code = modified_resp.status_code if modified_resp else None
                             finding.similarity_score = analysis.get("similarity")
 
                             findings.append(finding)
@@ -151,7 +142,7 @@ class IDORTester:
     async def _make_request(
         self, client: httpx.AsyncClient, method: str, url: str, parameter: Parameter
     ) -> Optional[httpx.Response]:
-        """Send request handling different parameter locations."""
+        """Make request with basic error handling."""
         try:
             if parameter.location == ParameterLocation.QUERY:
                 return await client.request(method, url, params={parameter.name: parameter.value})
@@ -168,8 +159,15 @@ class IDORTester:
             else:
                 return await client.request(method, url)
 
+        except httpx.RequestError as e:
+            # Network / connection errors
+            return None
         except Exception:
             return None
 
     def get_results(self) -> list[TestResult]:
         return self.results
+
+    def set_rate_limit(self, delay: float):
+        """Change rate limit between requests (in seconds)."""
+        self.rate_limit = max(0.0, delay)
