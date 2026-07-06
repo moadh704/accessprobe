@@ -1,8 +1,9 @@
-"""IDOR Testing Engine with rate limiting and improved robustness."""
+"""IDOR Testing Engine with smart value extraction."""
 
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any, Optional
 
 import httpx
@@ -13,26 +14,49 @@ from .detector import IDORDetector
 
 
 class IDORTester:
-    """Robust IDOR testing engine with rate limiting."""
+    """Advanced IDOR testing engine with smart value handling."""
 
-    def __init__(self, session_manager: SessionManager, delay: float = 0.3) -> None:
+    def __init__(self, session_manager: SessionManager, delay: float = 0.25) -> None:
         self.session_manager = session_manager
         self.detector = IDORDetector()
         self.results: list[TestResult] = []
-        self.delay = delay  # seconds between requests (basic rate limiting)
+        self.delay = delay
 
-    def _generate_candidate_values(self, original_value: Any, count: int = 6) -> list[Any]:
+    def _extract_potential_ids(self, text: str) -> list[str]:
+        """Extract potential ID-like values from response text."""
+        ids = set()
+
+        # Numeric IDs
+        for match in re.finditer(r'["\']?(?:id|user_id|profile_id|account_id|item_id|order_id)["\']?\s*[:=]\s*["\']?(\d{1,10})["\']?', text, re.IGNORECASE):
+            ids.add(match.group(1))
+
+        # UUIDs
+        for match in re.finditer(r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', text):
+            ids.add(match.group(0))
+
+        return list(ids)[:8]  # limit
+
+    def _generate_candidate_values(self, original_value: Any, response_text: str = "") -> list[Any]:
         candidates = [original_value]
+
+        # Extract from previous response if available
+        if response_text:
+            extracted = self._extract_potential_ids(response_text)
+            candidates.extend(extracted)
+
+        # Numeric variations
         if isinstance(original_value, (int, str)) and str(original_value).isdigit():
             val = int(original_value)
-            candidates.extend([val + 1, val - 1, val + 5, val + 10, val * 2])
+            candidates.extend([val + 1, val - 1, val + 5, val + 10])
+
+        # Deduplicate
         seen = set()
         unique = []
         for v in candidates:
             if v not in seen:
-                seen.add(v)
+                seen.add(str(v))
                 unique.append(v)
-        return unique[:count]
+        return unique[:10]
 
     async def test_parameter(
         self,
@@ -57,7 +81,9 @@ class IDORTester:
                 original_resp = await self._make_request(client, method, target_url, parameter)
                 await asyncio.sleep(self.delay)
 
-                values = values_to_test or self._generate_candidate_values(parameter.value)
+                response_text = original_resp.text if original_resp else ""
+
+                values = values_to_test or self._generate_candidate_values(parameter.value, response_text)
 
                 findings = []
 
