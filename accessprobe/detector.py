@@ -1,4 +1,4 @@
-"""Advanced IDOR and Broken Access Control Detection Engine."""
+"""Advanced IDOR Detection Engine - Improved for higher accuracy."""
 
 from __future__ import annotations
 
@@ -12,7 +12,13 @@ from .models import Finding, FindingSeverity
 
 
 class IDORDetector:
-    """High-accuracy detector for IDOR and authorization bypass vulnerabilities."""
+    """High-accuracy detector for IDOR and Broken Access Control vulnerabilities."""
+
+    INTERESTING_KEYWORDS = [
+        "admin", "dashboard", "profile", "settings", "account",
+        "delete", "edit", "update", "success", "welcome",
+        "user", "owner", "creator", "private", "sensitive"
+    ]
 
     def __init__(self, similarity_threshold: float = 0.80) -> None:
         self.similarity_threshold = similarity_threshold
@@ -24,76 +30,86 @@ class IDORDetector:
         original_role: str,
         test_role: str,
     ) -> dict:
-        """Analyze responses with advanced detection logic."""
         if not original_response or not modified_response:
-            return self._create_analysis(False, 0.0, FindingSeverity.LOW, ["Response failed"])
+            return self._failed_analysis()
 
         orig_code = original_response.status_code
         mod_code = modified_response.status_code
-        orig_text = original_response.text[:4000]
-        mod_text = modified_response.text[:4000]
+        orig_len = len(original_response.content)
+        mod_len = len(modified_response.content)
+        orig_text = original_response.text[:4000].lower()
+        mod_text = modified_response.text[:4000].lower()
 
         # === Signals ===
         status_changed = orig_code != mod_code
-        length_diff = abs(len(original_response.content) - len(modified_response.content))
+        length_diff = abs(orig_len - mod_len)
 
-        similarity = self._calculate_similarity(orig_text, mod_text)
+        try:
+            similarity = difflib.SequenceMatcher(None, orig_text, mod_text).ratio()
+        except Exception:
+            similarity = 0.0
 
-        # Header analysis
-        header_signals = self._analyze_headers(original_response, modified_response)
-
-        # Keyword & pattern analysis
-        keyword_score, keyword_reasons = self._analyze_keywords(mod_text)
-
-        # === Scoring System ===
-        score = 0.0
+        # === Detection Logic ===
+        is_vulnerable = False
+        confidence = 0.0
         reasons = []
+        severity = FindingSeverity.LOW
 
-        # Strong signal: Status code improvement
+        # Rule 1: Strong status code signal (highest confidence)
         if status_changed:
             if mod_code in (200, 201, 202) and orig_code in (401, 403, 404):
-                score += 0.45
-                reasons.append(f"Privilege escalation: {original_role} denied ({orig_code}) → {test_role} allowed ({mod_code})")
+                is_vulnerable = True
+                confidence = 0.93
+                reasons.append(f"Privilege escalation: {original_role} denied ({orig_code}) but {test_role} allowed ({mod_code})")
+                severity = FindingSeverity.HIGH
 
-            elif mod_code == 200 and orig_code != 200:
-                score += 0.30
-                reasons.append("Higher privilege role received successful response")
+            elif mod_code == 200 and orig_code not in (200, 201, 202):
+                is_vulnerable = True
+                confidence = 0.80
+                reasons.append("Only higher-privilege role received successful response")
+                severity = FindingSeverity.MEDIUM
 
-        # Similarity + success (classic IDOR pattern)
-        if similarity >= self.similarity_threshold and mod_code == 200:
-            score += 0.35
-            reasons.append(f"High content similarity ({similarity:.2f}) with successful response")
+        # Rule 2: High similarity on successful responses (classic IDOR)
+        if similarity >= self.similarity_threshold and orig_code == 200 and mod_code == 200:
+            is_vulnerable = True
+            confidence = max(confidence, 0.82)
+            reasons.append("High content similarity between different privilege levels")
+            if severity == FindingSeverity.LOW:
+                severity = FindingSeverity.MEDIUM
 
-        # Large content difference
-        if length_diff > 600 and similarity < 0.6 and mod_code == 200:
-            score += 0.25
-            reasons.append("Significant content difference between roles")
+        # Rule 3: Large structural difference
+        if length_diff > 1200 and similarity < 0.50:
+            if orig_code == 200 or mod_code == 200:
+                is_vulnerable = True
+                confidence = max(confidence, 0.68)
+                reasons.append("Significant content difference between roles")
+                if severity == FindingSeverity.LOW:
+                    severity = FindingSeverity.MEDIUM
 
-        # Header signals
-        score += header_signals["score"]
-        reasons.extend(header_signals["reasons"])
+        # Rule 4: Keyword analysis (boosts confidence)
+        keyword_hits = sum(1 for kw in self.INTERESTING_KEYWORDS if kw in mod_text)
+        if keyword_hits >= 2 and mod_code == 200:
+            boost = min(0.12, keyword_hits * 0.04)
+            confidence = min(1.0, confidence + boost)
+            reasons.append(f"Interesting keywords found in response ({keyword_hits} hits)")
 
-        # Keyword signals
-        score += keyword_score
-        reasons.extend(keyword_reasons)
+        # Rule 5: Header analysis (new)
+        sensitive_headers = ['x-user-id', 'x-account-id', 'x-owner']
+        for header in sensitive_headers:
+            if header in modified_response.headers and header not in original_response.headers:
+                confidence = min(1.0, confidence + 0.07)
+                reasons.append(f"Sensitive header appeared: {header}")
 
-        # Normalize score
-        final_score = min(1.0, score)
-        is_vulnerable = final_score >= 0.55
+        # Final adjustments
+        if is_vulnerable and confidence < 0.55:
+            confidence = 0.58
 
-        # Severity assignment
-        if final_score >= 0.85:
-            severity = FindingSeverity.CRITICAL
-        elif final_score >= 0.70:
+        if confidence > 0.90:
             severity = FindingSeverity.HIGH
-        elif final_score >= 0.55:
-            severity = FindingSeverity.MEDIUM
-        else:
-            severity = FindingSeverity.LOW
 
         return {
             "is_vulnerable": is_vulnerable,
-            "confidence": round(final_score, 2),
+            "confidence": round(confidence, 2),
             "severity": severity,
             "reasons": reasons,
             "similarity": round(similarity, 3),
@@ -101,78 +117,8 @@ class IDORDetector:
             "length_diff": length_diff,
         }
 
-    def _calculate_similarity(self, text1: str, text2: str) -> float:
-        """Calculate text similarity using multiple methods."""
-        if not text1 or not text2:
-            return 0.0
-
-        # Sequence matcher
-        seq_sim = difflib.SequenceMatcher(None, text1, text2).ratio()
-
-        # Simple token overlap
-        tokens1 = set(text1.lower().split())
-        tokens2 = set(text2.lower().split())
-        if tokens1 and tokens2:
-            overlap = len(tokens1 & tokens2) / len(tokens1 | tokens2)
-        else:
-            overlap = 0.0
-
-        return max(seq_sim, overlap)
-
-    def _analyze_headers(self, orig_resp: httpx.Response, mod_resp: httpx.Response) -> dict:
-        """Analyze response headers for authorization signals."""
-        score = 0.0
-        reasons = []
-
-        orig_headers = {k.lower(): v for k, v in orig_resp.headers.items()}
-        mod_headers = {k.lower(): v for k, v in mod_resp.headers.items()}
-
-        # Content-Type change
-        if orig_headers.get("content-type") != mod_headers.get("content-type"):
-            score += 0.08
-            reasons.append("Content-Type changed between roles")
-
-        # Server / technology headers
-        interesting_headers = ["server", "x-powered-by", "x-frame-options"]
-        for h in interesting_headers:
-            if h in mod_headers and h not in orig_headers:
-                score += 0.05
-
-        return {"score": min(0.15, score), "reasons": reasons}
-
-    def _analyze_keywords(self, text: str) -> tuple[float, list[str]]:
-        """Detect interesting keywords and patterns."""
-        score = 0.0
-        reasons = []
-        text_lower = text.lower()
-
-        high_value = ["admin", "dashboard", "settings", "delete", "edit", "create", "sensitive"]
-        medium_value = ["profile", "account", "user", "order", "item", "data"]
-
-        high_hits = sum(1 for word in high_value if word in text_lower)
-        medium_hits = sum(1 for word in medium_value if word in text_lower)
-
-        if high_hits >= 2:
-            score += 0.12
-            reasons.append(f"High-value keywords detected ({high_hits})")
-        elif high_hits == 1:
-            score += 0.06
-
-        if medium_hits >= 3:
-            score += 0.08
-            reasons.append(f"Multiple context keywords found ({medium_hits})")
-
-        # Look for potential data leakage patterns
-        if re.search(r'\b(email|password|token|api_key|secret)\b', text_lower):
-            score += 0.10
-            reasons.append("Potential sensitive data exposure")
-
-        return min(0.20, score), reasons
-
     def create_finding(self, parameter: any, analysis: dict, original_role: str, test_role: str) -> Finding:
-        """Create Finding object from analysis."""
-        evidence = "; ".join(analysis.get("reasons", []))[:300] if analysis.get("reasons") else ""
-
+        evidence = "; ".join(analysis.get("reasons", [])) if analysis.get("reasons") else ""
         return Finding(
             parameter=parameter,
             tested_roles=[original_role, test_role],
@@ -183,12 +129,12 @@ class IDORDetector:
             details={"confidence": analysis.get("confidence", 0.0)},
         )
 
-    def _create_analysis(self, is_vulnerable: bool, confidence: float, severity: FindingSeverity, reasons: list[str]) -> dict:
+    def _failed_analysis(self) -> dict:
         return {
-            "is_vulnerable": is_vulnerable,
-            "confidence": confidence,
-            "severity": severity,
-            "reasons": reasons,
+            "is_vulnerable": False,
+            "confidence": 0.0,
+            "severity": FindingSeverity.LOW,
+            "reasons": ["One or both responses failed"],
             "similarity": 0.0,
             "status_changed": False,
             "length_diff": 0,
