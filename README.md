@@ -1,18 +1,18 @@
 # AccessProbe
 
-**Specialized tool for detecting IDOR and Broken Access Control vulnerabilities in web applications.**
+**A specialized tool for detecting IDOR and Broken Access Control vulnerabilities.**
 
-AccessProbe helps security researchers and red teamers find authorization issues through intelligent multi-role testing, automatic value extraction, and professional reporting.
+AccessProbe helps security researchers find authorization issues in web applications using multi-role testing, intelligent value extraction, and professional reporting.
 
 ## Features
 
-- Multi-parameter scanning from configuration
-- Automatic extraction of potential IDs from HTTP responses
-- Confidence-based detection using multiple signals
-- Professional JSON and modern HTML reports
-- YAML configuration support for sessions and targets
+- Multi-parameter scanning via configuration
+- Automatic extraction of potential IDs from responses
+- Confidence scoring with multiple detection signals
+- Professional JSON and HTML reports
+- YAML configuration for sessions and scan targets
 - Built-in rate limiting
-- Clean command-line interface with rich output
+- Clean CLI with rich formatted output
 
 ## Installation
 
@@ -24,16 +24,16 @@ pip install -e .
 
 ## Quick Start
 
-### Recommended: Using a Configuration File
+### Using Configuration File (Recommended)
 
 ```bash
 cp examples/example_config.yaml my_scan.yaml
-# Edit my_scan.yaml with your session cookies
+# Add your cookies in my_scan.yaml
 
 accessprobe scan --config my_scan.yaml --report results.json --html-report report.html
 ```
 
-### Manual Mode (Single Parameter)
+### Manual Single-Parameter Scan
 
 ```bash
 accessprobe scan \
@@ -42,23 +42,21 @@ accessprobe scan \
   --value 42 \
   --original-role user \
   --test-roles admin \
-  --cookie "session=your_cookie_value"
+  --cookie "session=your_cookie"
 ```
 
 ## How It Works
 
-1. Load user sessions and roles
-2. Extract candidate values from responses when possible
-3. Test parameters across different privilege levels
-4. Analyze responses using multiple detection techniques
-5. Generate professional reports
+1. Load sessions and roles
+2. Extract candidate values (including from previous responses)
+3. Test parameters across different roles
+4. Analyze responses using multiple detection signals
+5. Generate reports
 
 ## Current Status
 
-AccessProbe is a focused tool for IDOR testing. It provides good detection capabilities through confidence scoring and smart value handling. Results should always be manually verified.
+AccessProbe is a focused tool for IDOR testing. It offers good accuracy through confidence-based detection and smart value handling. Manual verification of results is recommended.
 
 ## Disclaimer
 
-This tool is intended for **authorized security testing and educational purposes only**.
-
-Unauthorized access to systems is illegal.
+This tool is for **authorized security testing and educational purposes only**.
