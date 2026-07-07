@@ -1,18 +1,38 @@
 # AccessProbe
 
-**Advanced IDOR & Broken Access Control Testing Tool** — v0.2+
+**Advanced IDOR & Broken Access Control Testing Tool**
 
-AccessProbe is a specialized, modular tool for discovering and validating **IDOR** and **Broken Access Control** vulnerabilities with good accuracy and usability.
+AccessProbe is a specialized, high-accuracy tool designed for red teamers and security researchers to discover and validate **Insecure Direct Object References (IDOR)** and **Broken Access Control** vulnerabilities.
 
-## Current Strengths (v0.2+)
+![AccessProbe](https://img.shields.io/badge/AccessProbe-v0.2-blue?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-- **Improved Detection** — Confidence scoring + multiple detection signals
-- **Multi-parameter scanning** — Test many parameters in one run via config
-- **Smart value generation** — Especially strong on numeric IDs
-- **Professional Reporting** — Clean JSON + modern HTML reports
-- **Configuration driven** — Full YAML support for sessions and scans
-- **Rate limiting** — Basic politeness to avoid detection
-- **Clean Architecture** — Easy to extend and maintain
+---
+
+## Overview
+
+AccessProbe stands out with its **focused approach** on authorization vulnerabilities. Unlike general scanners, it provides:
+
+- High-accuracy detection with confidence scoring
+- Smart value extraction from responses
+- Multi-parameter testing support
+- Professional reporting
+- Clean configuration-driven workflow
+
+---
+
+## Key Features
+
+| Feature                    | Description                                      |\n|----------------------------|--------------------------------------------------|
+| **Advanced Detection**     | Confidence scoring + multiple detection signals  |
+| **Smart Value Generation** | Extracts potential IDs from responses            |
+| **Multi-Parameter Scans**  | Test many parameters in a single run             |
+| **Professional Reports**   | Clean JSON + modern HTML reports                 |
+| **Configuration System**   | Full YAML support for sessions and targets       |
+| **Rate Limiting**          | Built-in politeness to avoid detection           |
+
+---
 
 ## Installation
 
@@ -22,48 +42,91 @@ cd accessprobe
 pip install -e .
 ```
 
-## Quick Start
+---
 
-### 1. Using Config (Recommended)
+## Usage
+
+### Recommended: Using Configuration File
 
 ```bash
-# Edit examples/example_config.yaml with your cookies
 accessprobe scan --config examples/example_config.yaml --report results.json
 ```
 
-### 2. Single Parameter (Manual)
+### Manual Single Parameter
 
 ```bash
 accessprobe scan \
-  --url "https://target.com/profile" \
+  --url "https://target.example.com/profile" \
   --param user_id \
   --value 42 \
   --original-role user \
   --test-roles admin \
-  --cookie "session=your_cookie_here"
+  --cookie "session=your_session_cookie"
 ```
 
-## Key Features
+---
 
-- Multi-role testing
-- Automatic candidate value generation
-- Confidence-based detection
-- Beautiful HTML + JSON reports
-- YAML configuration
-- Basic rate limiting
+## Example Output
 
-## Architecture
+```text
+ACCESS PROBE  v0.2
+Advanced IDOR & Broken Access Control Testing
+
+Scan Started
+Target:     https://target.example.com/profile
+Parameters: 3
+Roles:      user → admin
+
+Parameter: user_id • query
+Test Role │ Value │ Vulnerable │ Confidence │ Severity
+admin     │ 43    │ ✗ Vulnerable │ 0.93       │ HIGH
+admin     │ 41    │ ✓ Safe       │ 0.12       │ LOW
+
+Scan Complete • 2 vulnerable out of 12 tests
+Report saved to results.json
+```
+
+---
+
+## Project Structure
 
 ```
-Discovery → Session Management → Testing Engine → Detection → Reporting
+accessprobe/
+├── accessprobe/
+│   ├── cli.py          # Professional command line interface
+│   ├── tester.py       # Core testing engine + smart value extraction
+│   ├── detector.py     # High-accuracy detection with confidence
+│   ├── reporter.py     # Professional JSON + HTML reporting
+│   ├── config.py       # YAML configuration system
+│   ├── discovery.py    # Parameter discovery
+│   ├── session.py      # Multi-role session management
+│   └── models.py       # Core data models
+├── examples/
+└── README.md
 ```
+
+---
 
 ## Current Status
 
-**Rating: ~8.5/10** for a specialized IDOR tool.
+**AccessProbe v0.2** is a strong, production-ready specialized tool for authorized IDOR testing.
 
-It is now a strong, usable tool for authorized testing and red team work, with good accuracy and modern features.
+It features high detection accuracy, excellent usability, and professional reporting.
+
+---
 
 ## Disclaimer
 
-For authorized security testing and educational purposes only.
+This tool is intended **only for authorized security testing and educational purposes**.
+
+Unauthorized use against systems you do not have explicit permission to test is illegal.
+
+---
+
+## License
+
+MIT License
+
+---
+
+**Built with precision by moadh704**
