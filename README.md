@@ -1,50 +1,73 @@
 # AccessProbe
 
-**Advanced IDOR & Broken Access Control Testing Tool** — v0.3
+**Specialized tool for detecting IDOR and Broken Access Control vulnerabilities.**
 
-AccessProbe is now a **strong, accurate, and practical** specialized tool for finding IDOR and Broken Access Control vulnerabilities.
+AccessProbe helps security researchers and red teamers find authorization flaws in web applications through multi-role testing, smart value extraction, and professional reporting.
 
-## Current Rating: **~9/10**
+## Features
 
-### Major Strengths
+- Multi-parameter scanning from a single config file
+- Automatic extraction of potential IDs from responses
+- Confidence-based detection with multiple signals
+- Professional JSON and HTML reporting
+- YAML-based configuration for sessions and targets
+- Built-in rate limiting
+- Clean CLI with rich output tables
 
-- **High-accuracy detection** with confidence scoring and multiple signals
-- **Smart value extraction** from responses (numbers, UUIDs, IDs)
-- **Multi-parameter scanning** in a single run
-- **Professional reporting** (JSON + beautiful modern HTML)
-- **Configuration-driven** with YAML
-- **Rate limiting** built-in
-- **Clean & extensible** architecture
+## Installation
+
+```bash
+git clone https://github.com/moadh704/accessprobe.git
+cd accessprobe
+pip install -e .
+```
 
 ## Quick Start
 
-```bash
-# Recommended way (using config)
-accessprobe scan --config examples/example_config.yaml --report results.json --html-report report.html
+### Using a Configuration File (Recommended)
 
-# Or single parameter
+1. Copy the example config:
+   ```bash
+   cp examples/example_config.yaml my_scan.yaml
+   ```
+2. Edit `my_scan.yaml` and add your session cookies.
+3. Run the scan:
+   ```bash
+   accessprobe scan --config my_scan.yaml --report results.json --html-report report.html
+   ```
+
+### Manual Single Parameter Scan
+
+```bash
 accessprobe scan \
-  --url https://target.com/api/user \
-  --param id \
-  --value 123 \
+  --url "https://target.example.com/profile" \
+  --param user_id \
+  --value 42 \
   --original-role user \
   --test-roles admin \
-  --cookie "session=xxx"
+  --cookie "session=your_cookie_value"
 ```
 
-## Key Features (v0.3)
+## Configuration
 
-- Multi-parameter support from config
-- Automatic ID extraction from responses
-- Confidence-based vulnerability scoring
-- Professional HTML + JSON reports
-- Basic rate limiting & politeness
-- Clean CLI with rich tables
+AccessProbe uses a simple YAML format. See `examples/example_config.yaml` for a full example.
 
-## Architecture
+You can define multiple sessions (roles) and multiple parameters to test in one run.
 
-Discovery → Sessions → Smart Testing → Advanced Detection → Professional Reporting
+## How It Works
+
+1. Loads sessions/roles from config or CLI
+2. Extracts candidate values (including from previous responses)
+3. Tests parameters across different privilege levels
+4. Analyzes responses using multiple detection signals
+5. Generates professional reports
+
+## Current Status
+
+AccessProbe is a focused tool for IDOR testing. It has good detection capabilities and is practical for authorized security assessments. Like any automated tool, it works best when combined with manual verification.
 
 ## Disclaimer
 
-**For authorized security testing and educational purposes only.**
+This tool is intended **only for authorized security testing and educational purposes**.
+
+Unauthorized use against systems you do not have explicit permission to test is illegal.
