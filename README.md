@@ -1,20 +1,28 @@
-# AccessProbe
+# 🔍 AccessProbe
 
-**Specialized tool for detecting IDOR and Broken Access Control vulnerabilities.**
+**Advanced IDOR & Broken Access Control Testing Tool**
 
-AccessProbe helps security researchers and red teamers find authorization flaws in web applications through multi-role testing, smart value extraction, and professional reporting.
+A focused, modern tool for discovering authorization vulnerabilities in web applications through intelligent multi-role testing.
 
-## Features
+---
 
-- Multi-parameter scanning from a single config file
-- Automatic extraction of potential IDs from responses
-- Confidence-based detection with multiple signals
-- Professional JSON and HTML reporting
-- YAML-based configuration for sessions and targets
-- Built-in rate limiting
-- Clean CLI with rich output tables
+## ✨ Features
 
-## Installation
+| Feature                        | Description                                      |
+|--------------------------------|--------------------------------------------------|
+| **Multi-Parameter Scanning**   | Test many parameters in a single run             |
+| **Smart Value Extraction**     | Automatically pulls potential IDs from responses |
+| **Confidence-Based Detection** | Multiple signals + scoring for better accuracy   |
+| **Professional Reporting**     | Clean JSON + beautiful modern HTML reports       |
+| **YAML Configuration**         | Define sessions and targets easily               |
+| **Rate Limiting**              | Built-in politeness to avoid detection           |
+| **Rich CLI Output**            | Beautiful tables and summaries                   |
+
+---
+
+## 🚀 Quick Start
+
+### 1. Install
 
 ```bash
 git clone https://github.com/moadh704/accessprobe.git
@@ -22,52 +30,58 @@ cd accessprobe
 pip install -e .
 ```
 
-## Quick Start
+### 2. Create a Config (Recommended)
 
-### Using a Configuration File (Recommended)
+```bash
+cp examples/example_config.yaml my_scan.yaml
+# Edit my_scan.yaml and add your session cookies
+```
 
-1. Copy the example config:
-   ```bash
-   cp examples/example_config.yaml my_scan.yaml
-   ```
-2. Edit `my_scan.yaml` and add your session cookies.
-3. Run the scan:
-   ```bash
-   accessprobe scan --config my_scan.yaml --report results.json --html-report report.html
-   ```
-
-### Manual Single Parameter Scan
+### 3. Run a Scan
 
 ```bash
 accessprobe scan \
-  --url "https://target.example.com/profile" \
-  --param user_id \
-  --value 42 \
-  --original-role user \
-  --test-roles admin \
-  --cookie "session=your_cookie_value"
+  --config my_scan.yaml \
+  --report results.json \
+  --html-report report.html
 ```
 
-## Configuration
+---
 
-AccessProbe uses a simple YAML format. See `examples/example_config.yaml` for a full example.
+## 📄 Usage Examples
 
-You can define multiple sessions (roles) and multiple parameters to test in one run.
+**Single Parameter (Manual)**
 
-## How It Works
+```bash
+accessprobe scan \
+  --url "https://target.com/api/user" \
+  --param id \
+  --value 123 \
+  --original-role user \
+  --test-roles admin \
+  --cookie "session=your_cookie"
+```
 
-1. Loads sessions/roles from config or CLI
-2. Extracts candidate values (including from previous responses)
-3. Tests parameters across different privilege levels
-4. Analyzes responses using multiple detection signals
-5. Generates professional reports
+---
 
-## Current Status
+## ⚙️ How It Works
 
-AccessProbe is a focused tool for IDOR testing. It has good detection capabilities and is practical for authorized security assessments. Like any automated tool, it works best when combined with manual verification.
+1. Load sessions and roles from config or CLI
+2. Extract candidate values (including from previous responses)
+3. Test parameters across different privilege levels
+4. Analyze responses using multiple detection signals
+5. Generate professional JSON + HTML reports
 
-## Disclaimer
+---
+
+## 📊 Current Status
+
+AccessProbe is a specialized tool focused on IDOR detection. It offers good accuracy through confidence scoring and smart value extraction. Like all automated tools, results should be validated manually.
+
+---
+
+## ⚠️ Disclaimer
 
 This tool is intended **only for authorized security testing and educational purposes**.
 
-Unauthorized use against systems you do not have explicit permission to test is illegal.
+Unauthorized testing is illegal.
