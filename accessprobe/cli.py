@@ -1,4 +1,4 @@
-"""AccessProbe - Professional Command Line Interface"""
+"""Command Line Interface for AccessProbe (v0.3 - 9/10 level)."""
 
 from __future__ import annotations
 
@@ -11,28 +11,17 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from rich import box
-
 console = Console()
 
 
 def print_banner() -> None:
-    title = Text()
-    title.append("ACCESS PROBE", style="bold cyan")
-    title.append("  v0.2", style="dim")
+    banner = Text()
+    banner.append("AccessProbe", style="bold cyan")
+    banner.append(" v0.3", style="dim")
+    banner.append("\nAdvanced IDOR & Broken Access Control Tester", style="italic dim")
 
-    subtitle = Text("Advanced IDOR & Broken Access Control Testing", style="italic dim")
-
-    content = Text.assemble(title, "\n", subtitle)
-
-    panel = Panel(
-        content,
-        border_style="cyan",
-        padding=(1, 2),
-        box=box.ROUNDED,
-    )
+    panel = Panel(banner, border_style="cyan", padding=(1, 2))
     console.print(panel)
-    console.print()
 
 
 def main() -> None:
@@ -42,19 +31,20 @@ def main() -> None:
         epilog="For authorized security testing and educational purposes only.",
     )
 
-    parser.add_argument("-v", "--version", action="version", version="AccessProbe 0.2")
+    parser.add_argument("-v", "--version", action="version", version="AccessProbe 0.3")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    scan_parser = subparsers.add_parser("scan", help="Run IDOR tests")
-    scan_parser.add_argument("--config", help="YAML configuration file")
+    scan_parser = subparsers.add_parser("scan", help="Run IDOR scan (multi-parameter supported)")
+    scan_parser.add_argument("--config", help="YAML config file")
     scan_parser.add_argument("--url", help="Target URL")
-    scan_parser.add_argument("--param", help="Parameter name (single mode)")
-    scan_parser.add_argument("--value", help="Parameter value (single mode)")
-    scan_parser.add_argument("--original-role", help="Original/low-privilege role")
-    scan_parser.add_argument("--test-roles", nargs="+", help="Roles to test against")
+    scan_parser.add_argument("--param", help="Parameter name (single)")
+    scan_parser.add_argument("--value", help="Parameter value (single)")
+    scan_parser.add_argument("--original-role", help="Original role name")
+    scan_parser.add_argument("--test-roles", nargs="+", help="Roles to test")
     scan_parser.add_argument("--cookie", help="Cookie string for original role")
-    scan_parser.add_argument("--report", help="Save JSON report path")
+    scan_parser.add_argument("--report", help="Save JSON report")
+    scan_parser.add_argument("--html-report", help="Save HTML report")
 
     args = parser.parse_args()
 
@@ -77,132 +67,100 @@ def run_scan(args):
     session_manager = SessionManager()
     all_results = []
 
-    # === Configuration Loading ===
     if args.config:
         try:
             config = load_config(args.config)
-            console.print("[cyan]▶[/cyan] Loaded configuration file")
-
             for sess in config.sessions:
-                session_manager.add_session(
-                    UserSession(
-                        name=sess.name,
-                        cookies=sess.cookies,
-                        headers=sess.headers,
-                        description=sess.description,
-                    )
-                )
+                session_manager.add_session(UserSession(
+                    name=sess.name, cookies=sess.cookies,
+                    headers=sess.headers, description=sess.description
+                ))
 
-            if config.scan:
-                target_url = args.url or config.scan.target.url
-                original_role = args.original_role or config.scan.original_role
-                test_roles = args.test_roles or config.scan.test_roles
+            if not config.scan:
+                console.print("[red]No scan section found in config[/red]")
+                return
 
-                parameters_to_test = []
-                if args.param and args.value:
-                    parameters_to_test.append(
-                        Parameter(name=args.param, location=ParameterLocation.QUERY, value=args.value)
-                    )
-                else:
-                    for p in config.scan.parameters:
-                        parameters_to_test.append(
-                            Parameter(
-                                name=p.get("name", "id"),
-                                location=ParameterLocation(p.get("location", "query")),
-                                value=p.get("value", ""),
-                            )
-                        )
+            target_url = args.url or config.scan.target.url
+            original_role = args.original_role or config.scan.original_role
+            test_roles = args.test_roles or config.scan.test_roles
+
+            parameters_to_test = []
+            if args.param and args.value:
+                parameters_to_test.append(Parameter(
+                    name=args.param, location=ParameterLocation.QUERY, value=args.value
+                ))
+            else:
+                for p in config.scan.parameters:
+                    parameters_to_test.append(Parameter(
+                        name=p.get("name", "id"),
+                        location=ParameterLocation(p.get("location", "query")),
+                        value=p.get("value", ""),
+                    ))
 
         except Exception as e:
-            console.print(f"[red]✗[/red] Failed to load config: {e}")
+            console.print(f"[red]Config error:[/red] {e}")
             return
     else:
         if not all([args.url, args.param, args.value]):
-            console.print("[red]✗[/red] Error: --url, --param and --value are required in manual mode")
+            console.print("[red]Error: --url, --param and --value required without config[/red]")
             return
 
         original_cookies = parse_cookie_string(args.cookie) if args.cookie else {}
         session_manager.add_session(UserSession(name=args.original_role or "user", cookies=original_cookies))
-
         for role in (args.test_roles or ["admin"]):
             session_manager.add_session(UserSession(name=role, cookies={}))
 
-        parameters_to_test = [
-            Parameter(name=args.param, location=ParameterLocation.QUERY, value=args.value)
-        ]
+        parameters_to_test = [Parameter(name=args.param, location=ParameterLocation.QUERY, value=args.value)]
         target_url = args.url
         original_role = args.original_role or "user"
         test_roles = args.test_roles or ["admin"]
 
     tester = IDORTester(session_manager)
 
-    # === Beautiful Header ===
-    console.rule("[bold cyan]Scan Started[/bold cyan]", style="cyan")
-    console.print(f"[bold]Target:[/bold]     {target_url}")
-    console.print(f"[bold]Parameters:[/bold]  {len(parameters_to_test)}")
-    console.print(f"[bold]Roles:[/bold]      {original_role}  →  {', '.join(test_roles)}")
-    console.print()
+    console.print(f"[bold cyan]AccessProbe Scan v0.3[/bold cyan]")
+    console.print(f"Target: {target_url}")
+    console.print(f"Parameters: {len(parameters_to_test)} | Roles: {original_role} → {', '.join(test_roles)}\n")
 
-    # === Run Tests ===
     for param in parameters_to_test:
         try:
-            result = asyncio.run(
-                tester.test_parameter(
-                    parameter=param,
-                    target_url=target_url,
-                    original_session=original_role,
-                    test_sessions=test_roles,
-                )
-            )
+            result = asyncio.run(tester.test_parameter(
+                parameter=param, target_url=target_url,
+                original_session=original_role, test_sessions=test_roles
+            ))
             all_results.append(result)
 
-            # === Beautiful Findings Table ===
-            table = Table(
-                title=f"[bold]{param.name}[/bold]  •  {param.location.value}",
-                show_lines=True,
-                box=box.ROUNDED,
-            )
-            table.add_column("Test Role", style="cyan")
+            table = Table(title=f"{param.name}", show_lines=True)
+            table.add_column("Tested As", style="cyan")
             table.add_column("Value", style="magenta")
-            table.add_column("Status", justify="center")
             table.add_column("Vulnerable", justify="center")
-            table.add_column("Confidence", justify="center")
-            table.add_column("Severity", style="yellow")
+            table.add_column("Conf.", justify="center")
+            table.add_column("Severity")
 
             for finding in result.findings:
-                conf = finding.details.get("confidence", 0.0) if finding.details else 0.0
-                vulnerable = "[bold red]✗ Vulnerable[/bold red]" if finding.is_vulnerable else "[green]✓ Safe[/green]"
-
+                conf = finding.details.get("confidence", 0) if finding.details else 0
                 table.add_row(
-                    finding.tested_roles[-1] if finding.tested_roles else "-",
+                    finding.tested_roles[-1],
                     str(finding.parameter.value),
-                    str(finding.modified_response_code or "-"),
-                    vulnerable,
+                    "[red]Yes[/red]" if finding.is_vulnerable else "[green]No[/green]",
                     f"{conf:.2f}",
-                    finding.severity.value.upper(),
+                    finding.severity.value.upper()
                 )
-
             console.print(table)
-            console.print()
 
         except Exception as e:
-            console.print(f"[red]✗ Error testing {param.name}:[/red] {e}")
+            console.print(f"[red]Error on {param.name}:[/red] {e}")
 
-    # === Final Summary ===
-    total_vulnerable = sum(1 for r in all_results for f in r.findings if f.is_vulnerable)
-    total_tests = sum(len(r.findings) for r in all_results)
+    total_vuln = sum(1 for r in all_results for f in r.findings if f.is_vulnerable)
+    console.print(f"\n[bold green]Scan finished[/bold green] — {total_vuln} potential IDOR(s) found.")
 
-    summary_text = Text()
-    summary_text.append("Scan Complete  •  ", style="bold")
-    summary_text.append(f"{total_vulnerable} vulnerable", style="bold red" if total_vulnerable > 0 else "bold green")
-    summary_text.append(f" out of {total_tests} tests", style="dim")
-
-    console.rule(summary_text, style="cyan")
-
-    if args.report and all_results:
+    if all_results:
         reporter = ReportGenerator(all_results)
-        reporter.save_json(args.report)
-        console.print(f"[green]✓[/green] Report saved to {args.report}")
+        if args.report:
+            reporter.save_json(args.report)
+            console.print(f"[green]✓ JSON report saved: {args.report}[/green]")
+        if args.html_report:
+            reporter.save_html(args.html_report)
+            console.print(f"[green]✓ HTML report saved: {args.html_report}[/green]")
 
 
 def parse_cookie_string(cookie_str: str) -> dict:
