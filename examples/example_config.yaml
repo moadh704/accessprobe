@@ -1,21 +1,18 @@
-# AccessProbe Example Configuration
-# Save this as my_scan.yaml and customize it
+# AccessProbe Example Configuration (Recommended style)
 
 sessions:
   - name: user
-    cookies:
-      session: "your_low_privilege_session_cookie_here"
-    description: "Regular user account"
+    cookie_file: cookies/user.txt          # Load cookies from file (cleaner)
+    description: "Low privilege user account"
 
   - name: admin
-    cookies:
-      session: "your_admin_session_cookie_here"
+    cookie_file: cookies/admin.txt
     description: "Administrator account"
 
 scan:
   target:
     url: "https://vulnerable-app.example.com/profile"
-    description: "User profile viewing endpoint"
+    description: "User profile endpoint"
 
   original_role: user
   test_roles:
@@ -26,7 +23,7 @@ scan:
       location: query
       value: "42"
 
-# You can add more parameters if needed
-#    - name: order_id
-#      location: query
-#      value: "1001"
+# You can still use raw cookies if preferred:
+#  - name: user
+#    cookies:
+#      session: "your_cookie_here"
