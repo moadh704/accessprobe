@@ -1,39 +1,36 @@
 """AccessProbe - Advanced IDOR & Broken Access Control Testing Tool."""
 
-__version__ = "0.1.0"
+from __future__ import annotations
 
-# Core models
-from .models import (
-    Parameter,
-    ParameterLocation,
-    UserSession,
-    Target,
-    Finding,
-    TestResult,
-    FindingSeverity,
-)
+__version__ = "0.3.0"
 
-# Main components
-from .session import SessionManager
-from .tester import IDORTester
 from .detector import IDORDetector
 from .discovery import ParameterDiscoverer
+from .models import (
+    Finding,
+    FindingSeverity,
+    Parameter,
+    ParameterLocation,
+    Target,
+    TestResult,
+    UserSession,
+)
 from .reporter import ReportGenerator
+from .session import SessionManager
+from .tester import IDORTester
 
 __all__ = [
-    "__version__",
-    # Models
-    "Parameter",
-    "ParameterLocation",
-    "UserSession",
-    "Target",
     "Finding",
-    "TestResult",
     "FindingSeverity",
-    # Core classes
-    "SessionManager",
-    "IDORTester",
     "IDORDetector",
+    "IDORTester",
+    "Parameter",
     "ParameterDiscoverer",
+    "ParameterLocation",
     "ReportGenerator",
+    "SessionManager",
+    "Target",
+    "TestResult",
+    "UserSession",
+    "__version__",
 ]

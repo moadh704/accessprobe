@@ -6,7 +6,7 @@ import re
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
 
 from .models import Parameter, ParameterLocation
 
@@ -15,9 +15,23 @@ class ParameterDiscoverer:
     """Improved parameter discovery from multiple sources."""
 
     INTERESTING_NAMES = [
-        "id", "user_id", "profile_id", "account_id", "item_id", "order_id",
-        "post_id", "comment_id", "file_id", "doc_id", "resource_id", "uuid",
-        "uid", "pid", "oid", "eid", "rid"
+        "id",
+        "user_id",
+        "profile_id",
+        "account_id",
+        "item_id",
+        "order_id",
+        "post_id",
+        "comment_id",
+        "file_id",
+        "doc_id",
+        "resource_id",
+        "uuid",
+        "uid",
+        "pid",
+        "oid",
+        "eid",
+        "rid",
     ]
 
     def __init__(self) -> None:
@@ -28,7 +42,7 @@ class ParameterDiscoverer:
         parsed = urlparse(url)
         query_params = parse_qs(parsed.query)
 
-        params = []
+        params: list[Parameter] = []
         for name, values in query_params.items():
             if self._is_interesting_name(name):
                 param = Parameter(
@@ -47,17 +61,33 @@ class ParameterDiscoverer:
         soup = BeautifulSoup(html, "html.parser")
         params: list[Parameter] = []
 
-        # Forms (inputs, selects, textareas)
         for form in soup.find_all("form"):
-            method = form.get("method", "get").lower()
-            location = ParameterLocation.BODY if method == "post" else ParameterLocation.QUERY
+            method_raw = form.get("method", "get")
+            method = (
+                method_raw[0].lower()
+                if isinstance(method_raw, list)
+                else str(method_raw or "get").lower()
+            )
+            location = (
+                ParameterLocation.BODY
+                if method == "post"
+                else ParameterLocation.QUERY
+            )
 
             for tag in form.find_all(["input", "textarea", "select", "button"]):
-                name = tag.get("name") or tag.get("id")
-                if not name or not self._is_interesting_name(name):
+                raw_name = tag.get("name") or tag.get("id")
+                if raw_name is None:
+                    continue
+                name = raw_name if isinstance(raw_name, str) else str(raw_name[0])
+                if not self._is_interesting_name(name):
                     continue
 
-                value = tag.get("value", "")
+                raw_value = tag.get("value", "")
+                if isinstance(raw_value, list):
+                    value: Any = raw_value[0] if raw_value else ""
+                else:
+                    value = raw_value or ""
+
                 param = Parameter(
                     name=name,
                     location=location,
@@ -66,11 +96,15 @@ class ParameterDiscoverer:
                 )
                 params.append(param)
 
-        # Data attributes (common in modern web apps)
         for tag in soup.find_all(True):
-            for attr, value in tag.attrs.items():
-                if attr.startswith("data-") and any(x in attr.lower() for x in ["id", "user", "item", "order"]):
-                    clean_name = attr.replace("data-", "")
+            attrs = getattr(tag, "attrs", {}) or {}
+            for attr, value in attrs.items():
+                if not isinstance(attr, str):
+                    continue
+                if attr.startswith("data-") and any(
+                    x in attr.lower() for x in ["id", "user", "item", "order"]
+                ):
+                    clean_name = attr.replace("data-", "").replace("-", "_")
                     if self._is_interesting_name(clean_name):
                         param = Parameter(
                             name=clean_name,
@@ -80,9 +114,9 @@ class ParameterDiscoverer:
                         )
                         params.append(param)
 
-        # Links with query parameters
         for link in soup.find_all("a", href=True):
-            href = link.get("href", "")
+            href_raw = link.get("href", "")
+            href = href_raw if isinstance(href_raw, str) else str(href_raw or "")
             if "?" in href:
                 parsed = urlparse(href)
                 for name, values in parse_qs(parsed.query).items():
@@ -100,9 +134,8 @@ class ParameterDiscoverer:
 
     def discover_from_javascript(self, js_code: str) -> list[Parameter]:
         """Extract potential parameters from JavaScript code."""
-        params = []
+        params: list[Parameter] = []
 
-        # JSON-like ID assignments
         patterns = [
             r'["\']?(user_id|profile_id|item_id|order_id|post_id|comment_id)["\']?\s*[:=]\s*["\']?([\w-]+)["\']?',
             r'["\']?id["\']?\s*[:=]\s*["\']?([\w-]{3,})["\']?',
@@ -130,14 +163,20 @@ class ParameterDiscoverer:
         self.discovered.extend(params)
         return params
 
-    def discover_from_api_response(self, json_data: dict | list) -> list[Parameter]:
+    def discover_from_api_response(
+        self, json_data: dict[str, Any] | list[Any]
+    ) -> list[Parameter]:
         """Extract potential ID parameters from API/JSON responses."""
-        params = []
+        params: list[Parameter] = []
 
-        def extract_from_dict(d: dict, prefix: str = ""):
+        def extract_from_dict(d: dict[str, Any], prefix: str = "") -> None:
             for key, value in d.items():
-                if isinstance(value, (dict, list)):
-                    extract_from_dict(value if isinstance(value, dict) else {}, f"{prefix}{key}.")
+                if isinstance(value, dict):
+                    extract_from_dict(value, f"{prefix}{key}.")
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, dict):
+                            extract_from_dict(item, f"{prefix}{key}.")
                 elif isinstance(value, (str, int)) and self._is_interesting_name(key):
                     param = Parameter(
                         name=key,
@@ -165,12 +204,15 @@ class ParameterDiscoverer:
     def get_all_discovered(self, unique: bool = True) -> list[Parameter]:
         """Return discovered parameters."""
         if not unique:
-            return self.discovered
+            return list(self.discovered)
 
-        seen = set()
-        unique_params = []
+        seen: set[str] = set()
+        unique_params: list[Parameter] = []
         for p in self.discovered:
             if p.name not in seen:
                 seen.add(p.name)
                 unique_params.append(p)
         return unique_params
+
+    def clear(self) -> None:
+        self.discovered.clear()

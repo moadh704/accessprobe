@@ -2,17 +2,21 @@
 
 **A specialized tool for detecting IDOR and Broken Access Control vulnerabilities.**
 
-AccessProbe helps security researchers and red teamers find authorization issues through intelligent multi-role testing and professional reporting.
+AccessProbe helps security researchers and red teamers find authorization issues through intelligent multi-role testing, horizontal IDOR checks, and professional reporting.
 
 ## Features
 
 - Multi-parameter scanning via YAML configuration
+- **Horizontal IDOR** tests (same role, alternate object IDs)
+- **Cross-role** broken access control tests
 - Automatic extraction of potential IDs from responses
-- Confidence-based detection
+- Confidence-based detection with tunable threshold
+- Parameter discovery from URL, HTML, JS, and JSON APIs
 - Professional JSON and HTML reports
-- YAML configuration with `cookie_file` support
-- Built-in rate limiting
-- Clean CLI
+- YAML configuration with `cookie_file` support (paths relative to the config file)
+- Query, path, body, header, and cookie parameter locations
+- Built-in rate limiting (`--delay`)
+- Clean CLI (`scan` + `discover`)
 
 ## Installation
 
@@ -20,6 +24,8 @@ AccessProbe helps security researchers and red teamers find authorization issues
 git clone https://github.com/moadh704/accessprobe.git
 cd accessprobe
 pip install -e .
+# optional dev tools
+pip install -e ".[dev]"
 ```
 
 ## Quick Start
@@ -28,7 +34,7 @@ pip install -e .
 
 ```bash
 mkdir -p cookies
-# Export cookies using browser extension (Get cookies.txt LOCALLY)
+# Export cookies using a browser extension (e.g. Get cookies.txt LOCALLY)
 # Save as cookies/user.txt and cookies/admin.txt
 ```
 
@@ -36,7 +42,7 @@ mkdir -p cookies
 
 ```bash
 cp examples/example_config.yaml my_scan.yaml
-# Edit my_scan.yaml (it uses cookie_file by default)
+# Edit my_scan.yaml
 ```
 
 ### 3. Run the scan
@@ -45,19 +51,36 @@ cp examples/example_config.yaml my_scan.yaml
 accessprobe scan --config my_scan.yaml --report results.json --html-report report.html
 ```
 
+### CLI without config
+
+```bash
+accessprobe scan \
+  --url "https://target.example.com/profile" \
+  --param user_id --value 1 \
+  --original-role user --test-roles admin \
+  --cookie "session=YOUR_SESSION" \
+  --report out.json
+```
+
+### Discover parameters
+
+```bash
+accessprobe discover --url "https://target.example.com/profile?user_id=1" --cookie "session=..."
+# or auto-discover during scan:
+accessprobe scan --config my_scan.yaml --discover
+```
+
 ## Configuration
 
-You can define sessions using either:
-
-**Option A: cookie_file (Recommended)**
+**Option A: cookie_file (recommended)**
 
 ```yaml
 sessions:
   - name: user
-    cookie_file: cookies/user.txt
+    cookie_file: cookies/user.txt   # relative to the config file directory
 ```
 
-**Option B: Raw cookies**
+**Option B: raw cookies**
 
 ```yaml
 sessions:
@@ -68,10 +91,25 @@ sessions:
 
 See `examples/example_config.yaml` for a full example.
 
-## Current Status
+### Useful flags
 
-AccessProbe is a focused tool for IDOR testing. It provides good accuracy and is practical for authorized assessments.
+| Flag | Description |
+|------|-------------|
+| `--min-confidence 0.55` | Minimum confidence to mark vulnerable |
+| `--delay 0.25` | Seconds between requests |
+| `--no-horizontal` | Skip same-role alternate-ID tests |
+| `--location query\|path\|body\|header\|cookie` | Parameter placement |
+| `--method GET` | HTTP method |
+| `--discover` | Auto-discover parameters from target |
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
 
 ## Disclaimer
 
 This tool is for **authorized security testing and educational purposes only**.
+Only use it on systems you own or have explicit permission to test.

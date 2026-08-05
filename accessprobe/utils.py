@@ -1,6 +1,7 @@
 """Utility functions and logging setup for AccessProbe."""
 
 import logging
+
 from rich.logging import RichHandler
 
 

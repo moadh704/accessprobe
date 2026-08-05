@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any
 
 import httpx
 
@@ -27,7 +27,7 @@ class SessionManager:
         for session in sessions:
             self.add_session(session)
 
-    def get_session(self, name: str) -> Optional[UserSession]:
+    def get_session(self, name: str) -> UserSession | None:
         """Get a session by name."""
         return self._sessions.get(name)
 
@@ -50,7 +50,7 @@ class SessionManager:
         """Remove all sessions."""
         self._sessions.clear()
 
-    def get_client(self, session_name: str) -> Optional[httpx.AsyncClient]:
+    def get_client(self, session_name: str) -> httpx.AsyncClient | None:
         """Return an async httpx client configured for the session."""
         session = self.get_session(session_name)
         if not session:
@@ -63,8 +63,11 @@ class SessionManager:
             timeout=30.0,
         )
 
-    def get_auth_kwargs(self, session_name: str) -> dict:
-        """Return cookies and headers ready for httpx requests."""
+    def get_auth_kwargs(self, session_name: str) -> dict[str, Any]:
+        """Return cookies and headers ready for httpx requests.
+
+        Returns empty dict if session is missing (caller should check).
+        """
         session = self.get_session(session_name)
         if not session:
             return {}

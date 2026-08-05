@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from pydantic import BaseModel, Field, ValidationError
 
 
@@ -21,15 +20,15 @@ def load_cookies_from_file(filepath: str | Path) -> dict[str, str]:
     if not filepath.exists():
         raise FileNotFoundError(f"Cookie file not found: {filepath}")
 
-    cookies = {}
+    cookies: dict[str, str] = {}
 
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
 
-            # Netscape format: domain	flag	path	secure	expiration	name	value
+            # Netscape format: domain  flag  path  secure  expiration  name  value
             if "\t" in line:
                 parts = line.split("\t")
                 if len(parts) >= 7:
@@ -45,10 +44,18 @@ def load_cookies_from_file(filepath: str | Path) -> dict[str, str]:
     return cookies
 
 
+def _resolve_path(base_dir: Path, filepath: str) -> Path:
+    """Resolve a path relative to base_dir when not absolute."""
+    p = Path(filepath)
+    if p.is_absolute():
+        return p
+    return (base_dir / p).resolve()
+
+
 class SessionConfig(BaseModel):
     name: str
     cookies: dict[str, str] = Field(default_factory=dict)
-    cookie_file: str | None = None          # New: path to cookie file
+    cookie_file: str | None = None
     headers: dict[str, str] = Field(default_factory=dict)
     description: str | None = None
 
@@ -62,7 +69,8 @@ class ScanConfig(BaseModel):
     target: TargetConfig
     original_role: str
     test_roles: list[str]
-    parameters: list[dict] = Field(default_factory=list)
+    parameters: list[dict[str, Any]] = Field(default_factory=list)
+    method: str = "GET"
 
 
 class AccessProbeConfig(BaseModel):
@@ -71,23 +79,30 @@ class AccessProbeConfig(BaseModel):
 
 
 def load_config(path: str | Path) -> AccessProbeConfig:
-    """Load and validate configuration. Automatically loads cookie_file if present."""
-    path = Path(path)
+    """Load and validate configuration. Automatically loads cookie_file if present.
+
+    Relative cookie_file paths are resolved relative to the config file directory.
+    """
+    path = Path(path).resolve()
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
 
-    with open(path, "r", encoding="utf-8") as f:
+    config_dir = path.parent
+
+    with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
 
     try:
         config = AccessProbeConfig(**data)
 
-        # Load cookies from file if cookie_file is specified
         for session in config.sessions:
             if session.cookie_file:
-                file_cookies = load_cookies_from_file(session.cookie_file)
-                # Merge with any manually defined cookies
+                cookie_path = _resolve_path(config_dir, session.cookie_file)
+                file_cookies = load_cookies_from_file(cookie_path)
+                # Merge: explicit cookies override file cookies
                 session.cookies = {**file_cookies, **session.cookies}
+                # Store resolved path for transparency
+                session.cookie_file = str(cookie_path)
 
         return config
 
@@ -98,7 +113,12 @@ def load_config(path: str | Path) -> AccessProbeConfig:
 def save_config(config: AccessProbeConfig, path: str | Path) -> None:
     path = Path(path)
     with open(path, "w", encoding="utf-8") as f:
-        yaml.dump(config.model_dump(exclude_none=True), f, sort_keys=False, allow_unicode=True)
+        yaml.dump(
+            config.model_dump(exclude_none=True),
+            f,
+            sort_keys=False,
+            allow_unicode=True,
+        )
 
 
 def create_example_config() -> AccessProbeConfig:
@@ -119,8 +139,6 @@ def create_example_config() -> AccessProbeConfig:
             target=TargetConfig(url="https://target.example.com/profile"),
             original_role="user",
             test_roles=["admin"],
-            parameters=[
-                {"name": "user_id", "location": "query", "value": "42"}
-            ],
+            parameters=[{"name": "user_id", "location": "query", "value": "42"}],
         ),
     )

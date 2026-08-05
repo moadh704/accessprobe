@@ -1,8 +1,9 @@
 # AccessProbe Example Configuration (Recommended style)
+# cookie_file paths are resolved relative to THIS config file.
 
 sessions:
   - name: user
-    cookie_file: cookies/user.txt          # Load cookies from file (cleaner)
+    cookie_file: cookies/user.txt
     description: "Low privilege user account"
 
   - name: admin
@@ -18,10 +19,17 @@ scan:
   test_roles:
     - admin
 
+  method: GET
+
   parameters:
     - name: user_id
       location: query
       value: "42"
+    # path example:
+    # - name: id
+    #   location: path
+    #   value: "42"
+    # (use URL like https://app.example.com/users/{id})
 
 # You can still use raw cookies if preferred:
 #  - name: user

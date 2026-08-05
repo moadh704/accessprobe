@@ -9,7 +9,7 @@ from typing import Any
 
 from jinja2 import Template
 
-from .models import TestResult, Finding
+from .models import TestResult
 
 
 class ReportGenerator:
@@ -24,11 +24,17 @@ class ReportGenerator:
         for result in self.results:
             for finding in result.findings:
                 conf = finding.details.get("confidence", 0.0) if finding.details else 0.0
+                details = finding.details or {}
                 findings_data.append(
                     {
                         "parameter": finding.parameter.name,
                         "location": finding.parameter.location.value,
                         "tested_value": str(finding.parameter.value),
+                        "original_value": (
+                            str(finding.parameter.original_value)
+                            if finding.parameter.original_value is not None
+                            else None
+                        ),
                         "tested_roles": finding.tested_roles,
                         "is_vulnerable": finding.is_vulnerable,
                         "severity": finding.severity.value,
@@ -37,6 +43,8 @@ class ReportGenerator:
                         "similarity_score": finding.similarity_score,
                         "original_status": finding.original_response_code,
                         "modified_status": finding.modified_response_code,
+                        "horizontal": bool(details.get("same_role")),
+                        "value_changed": bool(details.get("value_changed")),
                     }
                 )
 
@@ -233,7 +241,7 @@ class ReportGenerator:
 
         template = Template(template_str)
         data = self.to_dict()
-        return template.render(**data)
+        return str(template.render(**data))
 
     def save_html(self, filepath: str | Path) -> None:
         Path(filepath).write_text(self.generate_html())
