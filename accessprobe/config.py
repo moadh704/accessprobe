@@ -71,6 +71,10 @@ class ScanConfig(BaseModel):
     test_roles: list[str]
     parameters: list[dict[str, Any]] = Field(default_factory=list)
     method: str = "GET"
+    # role → list of object IDs that role is allowed to access (self-owned)
+    own_ids: dict[str, list[str]] = Field(default_factory=dict)
+    # roles expected to have broad access (e.g. admin)
+    privileged_roles: list[str] = Field(default_factory=list)
 
 
 class AccessProbeConfig(BaseModel):

@@ -19,6 +19,13 @@ scan:
     - bob
     - admin
   method: GET
+  # Self-access + intended admin access should not raise as IDOR
+  own_ids:
+    alice: ["1"]
+    bob: ["2"]
+    admin: ["3"]
+  privileged_roles:
+    - admin
   parameters:
     - name: user_id
       location: query

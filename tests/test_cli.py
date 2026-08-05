@@ -29,7 +29,7 @@ def test_cli_version() -> None:
         check=False,
     )
     assert r.returncode == 0
-    assert "0.3.0" in r.stdout
+    assert "0.4.0" in r.stdout
 
 
 def test_cli_help_no_command() -> None:

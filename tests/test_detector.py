@@ -45,10 +45,10 @@ def test_horizontal_idor_same_role_different_id() -> None:
     assert a["severity"] == FindingSeverity.HIGH
 
 
-def test_same_value_both_200_not_auto_vulnerable() -> None:
-    """Both roles viewing the same owned resource should not hard-flag IDOR."""
+def test_same_value_both_200_is_lead_for_triage() -> None:
+    """Cross-role same-ID success is a lead; ownership/privileged filters suppress FPs."""
     det = IDORDetector()
-    body = '{"user_id":1,"name":"Alice"}'
+    body = '{"user_id":1,"name":"Alice","email":"a@x.com","profile":true}'
     a = det.analyze_responses(
         mock_resp(200, body),
         mock_resp(200, body),
@@ -57,8 +57,8 @@ def test_same_value_both_200_not_auto_vulnerable() -> None:
         value_changed=False,
         same_role=False,
     )
-    # Without enough sensitive keywords, should not mark vulnerable
-    assert a["is_vulnerable"] is False
+    assert a["is_vulnerable"] is True
+    assert a["confidence"] >= 0.65
 
 
 def test_none_response() -> None:

@@ -12,6 +12,10 @@ scan:
   test_roles:
     - bob
   method: GET
+  # Alice owns orders 100/101 in this lab story; bob owns others.
+  own_ids:
+    alice: ["100", "101"]
+    bob: ["102", "103"]
   parameters:
     - name: order_id
       location: query

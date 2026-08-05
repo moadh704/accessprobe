@@ -1,0 +1,42 @@
+﻿<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>AccessProbe Accuracy</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: ui-sans-serif, system-ui, Segoe UI, sans-serif; background: #0b1220; color: #e8eefc; padding: 48px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .sub { color: #8fa3c8; margin-bottom: 32px; font-size: 15px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card { background: #121a2b; border: 1px solid #24314d; border-radius: 16px; padding: 24px; }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: #8fa3c8; margin-bottom: 12px; }
+  .big { font-size: 48px; font-weight: 800; margin: 8px 0; }
+  .bad { color: #ff6b7a; }
+  .good { color: #3dd68c; }
+  .row { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid #24314d; font-size: 14px; }
+  .label { color: #8fa3c8; }
+  .pill { display: inline-block; background: #1b2a4a; color: #7eb6ff; padding: 4px 10px; border-radius: 999px; font-size: 12px; margin-bottom: 16px; }
+  .footer { margin-top: 28px; color: #6b7c9c; font-size: 13px; }
+</style></head>
+<body>
+  <div class="pill">AccessProbe v0.4.0 · Authorized local lab</div>
+  <h1>Accuracy upgrade: ownership + privileged roles</h1>
+  <p class="sub">Secure profile endpoint — same target, better context → fewer false positives</p>
+  <div class="grid">
+    <div class="card">
+      <h2>Before (v0.3)</h2>
+      <div class="big bad">3 FPs</div>
+      <div class="row"><span class="label">Secure horizontal foreign IDs</span><span>Quiet ✓</span></div>
+      <div class="row"><span class="label">Self-access (bob → own id)</span><span class="bad">Flagged</span></div>
+      <div class="row"><span class="label">Intended admin access</span><span class="bad">Flagged</span></div>
+      <div class="row"><span class="label">Vulnerable findings on secure ACL</span><span class="bad">3</span></div>
+    </div>
+    <div class="card">
+      <h2>After (v0.4)</h2>
+      <div class="big good">0 FPs</div>
+      <div class="row"><span class="label">Secure horizontal foreign IDs</span><span>Quiet ✓</span></div>
+      <div class="row"><span class="label">Self-access (bob → own id)</span><span class="good">Suppressed</span></div>
+      <div class="row"><span class="label">Intended admin access</span><span class="good">Suppressed</span></div>
+      <div class="row"><span class="label">Vulnerable findings on secure ACL</span><span class="good">0</span></div>
+    </div>
+  </div>
+  <p class="footer">Broken lab endpoint still reports real horizontal IDOR (alice → user_id=2, conf. 1.00). Juice Shop basket path IDOR validated separately.</p>
+</body></html>

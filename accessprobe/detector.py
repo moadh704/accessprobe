@@ -155,28 +155,28 @@ class IDORDetector:
             if severity == FindingSeverity.LOW:
                 severity = FindingSeverity.MEDIUM
 
-        # Rule 4: Cross-role same value — only flag when low-priv was denied
-        # or content is unexpectedly identical for privileged-only data patterns.
-        # Same-value both-200 high-similarity alone is often expected (both can
-        # view the resource) → treat as weak signal, not a hard vulnerability.
+        # Rule 4: Cross-role access to the *same* object ID with success on both.
+        # Often legitimate (shared resource or privileged role). Still surface as
+        # a medium lead so ownership / privileged-role filters can suppress
+        # intended cases while real horizontal/cross-user leaks stay visible.
         if (
             not same_role
             and not value_changed
-            and similarity >= self.similarity_threshold
             and orig_code == 200
             and mod_code == 200
+            and not self._looks_like_error(mod_text)
         ):
-            # Weak informational signal only if sensitive keywords dominate
             keyword_hits = sum(1 for kw in self.INTERESTING_KEYWORDS if kw in mod_text)
-            if keyword_hits >= 4:
+            if similarity >= self.similarity_threshold or keyword_hits >= 2:
                 is_vulnerable = True
-                confidence = max(confidence, 0.60)
+                confidence = max(confidence, 0.72 if keyword_hits >= 2 else 0.65)
                 reasons.append(
-                    "Same object accessible by both roles with sensitive content "
-                    "(possible broken access control; verify intended sharing)"
+                    f"Cross-role: '{test_role}' can access the same object ID as "
+                    f"'{original_role}' with a successful response "
+                    "(verify ownership; use --own-ids / --privileged-roles to suppress)"
                 )
                 if severity == FindingSeverity.LOW:
-                    severity = FindingSeverity.LOW
+                    severity = FindingSeverity.MEDIUM
 
         # Rule 5: Large structural difference with success on one side
         if length_diff > 1200 and similarity < 0.50 and (orig_code == 200 or mod_code == 200):

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|--------|
-| **Version** | 0.3.0 |
+| **Version** | 0.4.0 |
 | **Last updated** | 2026-08-05 |
 | **Companion report** | [`docs/TEST_RESULTS.md`](TEST_RESULTS.md) |
 | **Audience** | Maintainers, AI agents, portfolio reviewers |
@@ -28,13 +28,13 @@ This plan is written so a human or AI assistant can execute it step-by-step and 
 
 | Phase | Name | Priority | Status |
 |-------|------|----------|--------|
-| 1 | Unit tests | Critical | **Done** (28/28) |
+| 1 | Unit tests | Critical | **Done** (33/33) |
 | 2 | Local IDOR lab | Critical | **Done** |
 | 3 | Accuracy analysis | Critical | **Done** |
 | 4 | Real vulnerable labs | High | **Done** (Juice Shop local); DVWA / PortSwigger / bWAPP optional next |
 | 5 | Edge cases & robustness | High | **Done** (core cases); expand UUIDs / 429 later |
 | 6 | Usability & reporting | Medium | **Done** |
-| 7 | Advanced features | Medium | **Pending** (product work) |
+| 7 | Advanced features | Medium | **Partial** — ownership map + privileged roles shipped in **v0.4.0** |
 
 Detailed outcomes → **[TEST_RESULTS.md](TEST_RESULTS.md)**.
 
@@ -53,7 +53,7 @@ pytest -v --tb=short
 - All tests pass
 - Core modules covered: models, session, config, detector, tester, discovery, reporter, cli
 
-**Expected:** `28 passed`
+**Expected:** `33 passed`
 
 ---
 
@@ -211,10 +211,10 @@ See `labs/juice_shop/README.md`.
 
 ## 9. Phase 7 — Advanced features (product backlog)
 
-- [ ] Ownership map (`--own-ids` or config)  
-- [ ] Privileged role handling (`--privileged-roles`)  
-- [ ] Better candidate filtering (exclude field names / dates)  
-- [x] Minimum confidence threshold (`--min-confidence`) — exists  
+- [x] Ownership map (`--own-ids` / `scan.own_ids`) — **v0.4.0**  
+- [x] Privileged role handling (`--privileged-roles`) — **v0.4.0**  
+- [x] Better candidate filtering (exclude field names / dates) — **v0.4.0**  
+- [x] Minimum confidence threshold (`--min-confidence`)  
 - [ ] Horizontal-only mode refinements  
 - [ ] First-class JWT helpers (beyond raw headers)  
 - [ ] CSRF token handling  

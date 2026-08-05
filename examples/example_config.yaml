@@ -21,6 +21,13 @@ scan:
 
   method: GET
 
+  # Accuracy helpers (v0.4+) — cut self-access and intended-admin FPs
+  own_ids:
+    user: ["42"]
+    admin: ["1"]
+  privileged_roles:
+    - admin
+
   parameters:
     - name: user_id
       location: query

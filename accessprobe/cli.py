@@ -38,6 +38,23 @@ def parse_cookie_string(cookie_str: str) -> dict[str, str]:
     return cookies
 
 
+def parse_own_ids(spec: str | None) -> dict[str, list[str]]:
+    """Parse ``alice=1,10;bob=2`` into ``{alice: [1,10], bob: [2]}``."""
+    if not spec:
+        return {}
+    result: dict[str, list[str]] = {}
+    for chunk in spec.split(";"):
+        chunk = chunk.strip()
+        if not chunk or "=" not in chunk:
+            continue
+        role, ids_part = chunk.split("=", 1)
+        role = role.strip()
+        ids = [x.strip() for x in ids_part.split(",") if x.strip()]
+        if role and ids:
+            result[role] = ids
+    return result
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="accessprobe",
@@ -99,6 +116,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Auto-discover interesting parameters from the target URL/page",
     )
+    scan_parser.add_argument(
+        "--own-ids",
+        default=None,
+        metavar="role=id,id;role=id",
+        help=(
+            "Ownership map to suppress self-access FPs. "
+            "Example: alice=1;bob=2,20;admin=3"
+        ),
+    )
+    scan_parser.add_argument(
+        "--privileged-roles",
+        nargs="+",
+        default=None,
+        metavar="ROLE",
+        help="Roles with intended broad access (suppress their access findings)",
+    )
 
     # --- discover ---
     disc_parser = subparsers.add_parser(
@@ -134,6 +167,8 @@ async def run_scan(args: argparse.Namespace) -> int:
     test_roles: list[str]
     parameters_to_test: list[Parameter]
     method = "GET"
+    own_ids: dict[str, list[str]] = {}
+    privileged_roles: list[str] = []
 
     if args.config:
         try:
@@ -156,6 +191,8 @@ async def run_scan(args: argparse.Namespace) -> int:
             original_role = args.original_role or config.scan.original_role
             test_roles = args.test_roles or config.scan.test_roles
             method = (args.method or config.scan.method or "GET").upper()
+            own_ids = dict(config.scan.own_ids or {})
+            privileged_roles = list(config.scan.privileged_roles or [])
 
             parameters_to_test = []
             if args.param and args.value:
@@ -247,10 +284,25 @@ async def run_scan(args: argparse.Namespace) -> int:
             f"[yellow]Warning: test roles not found (skipped): {', '.join(missing)}[/yellow]"
         )
 
+    # CLI overrides for accuracy context (merge over config)
+    cli_own = parse_own_ids(getattr(args, "own_ids", None))
+    if cli_own:
+        for role, ids in cli_own.items():
+            own_ids.setdefault(role, [])
+            for i in ids:
+                if i not in own_ids[role]:
+                    own_ids[role].append(i)
+    if getattr(args, "privileged_roles", None):
+        for r in args.privileged_roles:
+            if r not in privileged_roles:
+                privileged_roles.append(r)
+
     tester = IDORTester(
         session_manager,
         delay=args.delay,
         min_confidence=args.min_confidence,
+        own_ids=own_ids,
+        privileged_roles=set(privileged_roles),
     )
 
     console.print(f"[bold cyan]AccessProbe Scan v{__version__}[/bold cyan]")
@@ -258,8 +310,14 @@ async def run_scan(args: argparse.Namespace) -> int:
     console.print(f"Method: {method}")
     console.print(
         f"Parameters: {len(parameters_to_test)} | "
-        f"Roles: {original_role} → {', '.join(test_roles)}\n"
+        f"Roles: {original_role} → {', '.join(test_roles)}"
     )
+    if own_ids:
+        mapped = ", ".join(f"{r}=[{','.join(v)}]" for r, v in own_ids.items())
+        console.print(f"Ownership map: {mapped}")
+    if privileged_roles:
+        console.print(f"Privileged roles: {', '.join(privileged_roles)}")
+    console.print()
 
     for param in parameters_to_test:
         try:

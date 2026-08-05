@@ -4,13 +4,37 @@ from __future__ import annotations
 
 import asyncio
 import re
+from collections.abc import Mapping
 from typing import Any
 
 import httpx
 
 from .detector import IDORDetector
-from .models import Parameter, ParameterLocation, TestResult
+from .models import Finding, Parameter, ParameterLocation, TestResult
 from .session import SessionManager
+
+# Field-name / noise tokens that look like IDs but rarely are object identifiers
+_NOISE_CANDIDATES = {
+    "user_id",
+    "userid",
+    "account_id",
+    "order_id",
+    "owner_user_id",
+    "private_notes",
+    "profile",
+    "email",
+    "phone",
+    "password",
+    "token",
+    "success",
+    "error",
+    "message",
+    "status",
+    "createdat",
+    "updatedat",
+    "node_modules",
+    "process_params",
+}
 
 
 class IDORTester:
@@ -21,17 +45,24 @@ class IDORTester:
         session_manager: SessionManager,
         delay: float = 0.25,
         min_confidence: float = 0.55,
+        own_ids: Mapping[str, set[str] | list[str]] | None = None,
+        privileged_roles: set[str] | list[str] | None = None,
     ) -> None:
         self.session_manager = session_manager
         self.detector = IDORDetector(min_confidence=min_confidence)
         self.results: list[TestResult] = []
         self.delay = delay
+        self.own_ids: dict[str, set[str]] = {
+            role: {str(v) for v in values}
+            for role, values in (own_ids or {}).items()
+        }
+        self.privileged_roles: set[str] = {str(r) for r in (privileged_roles or set())}
 
     def _extract_potential_ids(self, text: str) -> list[str]:
         """Extract potential IDs from response text (numbers, UUIDs, etc)."""
         ids: set[str] = set()
 
-        for match in re.finditer(r"\b(\d{3,})\b", text):
+        for match in re.finditer(r"\b(\d{1,12})\b", text):
             ids.add(match.group(1))
 
         for match in re.finditer(
@@ -41,10 +72,35 @@ class IDORTester:
         ):
             ids.add(match.group(0))
 
-        for match in re.finditer(r"\b([a-zA-Z0-9_-]{12,})\b", text):
-            ids.add(match.group(1))
+        # Long opaque tokens only when they do not look like field names
+        for match in re.finditer(r"\b([a-zA-Z0-9_-]{16,})\b", text):
+            token = match.group(1)
+            if token.lower() not in _NOISE_CANDIDATES and not re.search(
+                r"(19|20)\d{2}-\d{2}", token
+            ):
+                ids.add(token)
 
         return list(ids)[:10]
+
+    def _is_plausible_candidate(self, value: Any, original_value: Any) -> bool:
+        """Drop obvious noise (JSON keys, timestamps, field names)."""
+        s = str(value).strip()
+        if not s:
+            return False
+        if s.lower() in _NOISE_CANDIDATES:
+            return False
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}.*", s):
+            return False  # ISO-ish dates
+        # When baseline is numeric, prefer numeric candidates
+        if str(original_value).isdigit() and not s.isdigit():
+            # allow UUIDs
+            if not re.fullmatch(
+                r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+                r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                s,
+            ):
+                return False
+        return True
 
     def _generate_candidate_values(
         self, original_value: Any, response_text: str = ""
@@ -63,10 +119,57 @@ class IDORTester:
         unique: list[Any] = []
         for v in candidates:
             key = str(v)
-            if key not in seen:
-                seen.add(key)
-                unique.append(v)
+            if key in seen:
+                continue
+            if not self._is_plausible_candidate(v, original_value):
+                continue
+            seen.add(key)
+            unique.append(v)
         return unique[:8]
+
+    def _apply_context_filters(
+        self,
+        finding: Finding,
+        *,
+        test_role: str,
+        test_value: Any,
+    ) -> Finding:
+        """Suppress known false positives using ownership and privilege context."""
+        if not finding.is_vulnerable:
+            return finding
+
+        details = dict(finding.details or {})
+
+        if test_role in self.privileged_roles:
+            finding.is_vulnerable = False
+            details["suppressed"] = "privileged_role"
+            details["confidence"] = 0.0
+            note = (
+                f"Suppressed: role '{test_role}' is privileged "
+                "(intended broader access)"
+            )
+            finding.evidence = (
+                f"{finding.evidence}; {note}" if finding.evidence else note
+            )
+            finding.details = details
+            return finding
+
+        owned = self.own_ids.get(test_role, set())
+        if str(test_value) in owned:
+            finding.is_vulnerable = False
+            details["suppressed"] = "self_access"
+            details["confidence"] = 0.0
+            note = (
+                f"Suppressed: value '{test_value}' is owned by role '{test_role}' "
+                "(self-access)"
+            )
+            finding.evidence = (
+                f"{finding.evidence}; {note}" if finding.evidence else note
+            )
+            finding.details = details
+            return finding
+
+        return finding
 
     def _values_differ(self, a: Any, b: Any) -> bool:
         return str(a) != str(b)
@@ -148,6 +251,11 @@ class IDORTester:
                             modified_resp.status_code if modified_resp else None
                         )
                         finding.similarity_score = analysis.get("similarity")
+                        finding = self._apply_context_filters(
+                            finding,
+                            test_role=original_session,
+                            test_value=test_value,
+                        )
                         findings.append(finding)
 
                 # --- Cross-role tests ---
@@ -192,6 +300,11 @@ class IDORTester:
                                 modified_resp.status_code if modified_resp else None
                             )
                             finding.similarity_score = analysis.get("similarity")
+                            finding = self._apply_context_filters(
+                                finding,
+                                test_role=test_role,
+                                test_value=test_value,
+                            )
                             findings.append(finding)
 
                 test_result.findings = findings
