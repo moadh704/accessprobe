@@ -1,6 +1,6 @@
-# OWASP Juice Shop lab notes (authorized local testing)
+# Juice Shop lab (local only)
 
-This folder helps reproduce AccessProbe validation against a **local** Juice Shop instance.
+Reproduce AccessProbe checks against a local Juice Shop instance.
 
 ## Prerequisites
 
@@ -58,8 +58,7 @@ headers:
 
 AccessProbe should report a **horizontal** finding with high confidence when the foreign basket returns 200 with a similar JSON body.
 
-## Security note
+## Notes
 
-- Do **not** commit files containing live JWTs.  
-- `scan_basket.yaml`, `scan_users.yaml`, and `cookies/*.token` are gitignored.  
+- Do not commit JWTs. `scan_basket.yaml`, `scan_users.yaml`, and `cookies/*.token` are gitignored.
 - Only scan Juice Shop instances you control.

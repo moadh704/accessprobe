@@ -21,7 +21,7 @@ scan:
 
   method: GET
 
-  # Accuracy helpers (v0.4+) — cut self-access and intended-admin FPs
+  # optional: reduce self-access / intended-admin noise
   own_ids:
     user: ["42"]
     admin: ["1"]

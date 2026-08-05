@@ -1,102 +1,64 @@
 # AccessProbe
 
-**Multi-role IDOR & broken access control scanner for authorized web testing.**
+IDOR and broken access control scanner. Multi-role / multi-session testing, horizontal object-ID checks, confidence scoring, JSON and HTML reports.
 
-AccessProbe finds object-level authorization flaws with horizontal IDOR checks, cross-role tests, confidence scoring, and professional JSON/HTML reports — validated on a local multi-user lab and OWASP Juice Shop.
+Validated on a local multi-user lab and OWASP Juice Shop (`127.0.0.1` only).
 
 [![Version](https://img.shields.io/badge/version-0.4.0-cyan)](https://github.com/moadh704/accessprobe)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/tests-33%20passed-brightgreen)](https://github.com/moadh704/accessprobe)
-[![License](https://img.shields.io/badge/license-Proprietary-lightgrey)](LICENSE)
 
-<p align="center">
-  <img src="docs/assets/banner.jpg" alt="AccessProbe — IDOR and broken access control testing" width="920" />
-</p>
-
----
-
-### Why it exists
-
-Most scanners are noisy on authorization bugs. AccessProbe is built for **one job**: multi-session object ID testing with enough context (ownership map + privileged roles) to cut self-access and intended-admin false positives.
-
-### Proof (v0.4.0)
+## Results (v0.4.0)
 
 | Check | Result |
 |-------|--------|
-| Unit / integration tests | **33/33 passed** |
-| Broken lab profile (horizontal IDOR) | Detected — confidence **1.00** |
-| Correct lab ACL (secure profile) | **0 false positives** (with ownership + privileged roles) |
-| OWASP Juice Shop basket path IDOR | Detected — confidence **1.00** |
-| Reports | JSON + HTML |
+| Tests | 33/33 passed |
+| Broken lab profile (horizontal IDOR) | Detected (confidence 1.00) |
+| Secure lab profile (correct ACL) | 0 false positives with `own_ids` + `privileged_roles` |
+| Juice Shop basket path IDOR | Detected (confidence 1.00) |
 
-<p align="center">
-  <img src="docs/assets/accuracy-before-after.png" alt="Before/after accuracy: secure ACL false positives drop from 3 to 0" width="900" />
-</p>
+![Accuracy before/after](docs/assets/accuracy-before-after.png)
 
-<p align="center"><em>v0.4 accuracy upgrade — secure endpoint: 3 FPs → 0 FPs</em></p>
+*Secure endpoint: 3 FPs (v0.3) → 0 FPs (v0.4) with ownership map and privileged roles.*
 
-<p align="center">
-  <img src="docs/assets/report-vuln.png" alt="HTML report for vulnerable IDOR lab scan" width="900" />
-</p>
+![Vulnerable lab HTML report](docs/assets/report-vuln.png)
 
-<p align="center"><em>HTML report — vulnerable profile scan (authorized local lab)</em></p>
-
-Full write-up with ground truth and TP/FP tables → **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**  
-Step-by-step program → **[docs/TEST_PLAN.md](docs/TEST_PLAN.md)**  
-Short accuracy demo clip → **[docs/assets/demo-accuracy.mp4](docs/assets/demo-accuracy.mp4)**
-
----
+Details: [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md) · Plan: [docs/TEST_PLAN.md](docs/TEST_PLAN.md)
 
 ## Features
 
-- **Horizontal IDOR** — same role, alternate object IDs  
-- **Cross-role** broken access control tests  
-- **Ownership map** (`own_ids` / `--own-ids`) — suppress self-access FPs  
-- **Privileged roles** (`privileged_roles` / `--privileged-roles`) — suppress intended admin access  
-- Confidence-based detection with `--min-confidence`  
-- Parameter discovery from URL, HTML, JS, JSON  
-- Query, path, body, header, cookie parameter locations  
-- Cookie files + raw cookies + **Bearer JWT headers**  
-- Rate limiting (`--delay`) · JSON & HTML reports  
+- Horizontal IDOR (same role, other object IDs)
+- Cross-role access tests
+- Ownership map (`own_ids` / `--own-ids`) to drop self-access noise
+- Privileged roles (`privileged_roles` / `--privileged-roles`) for intended admin access
+- Parameter discovery (URL, HTML, JS, JSON)
+- Query, path, body, header, cookie parameters
+- Cookie files, raw cookies, Bearer JWT headers
+- Rate limiting (`--delay`), JSON/HTML reports
 
----
-
-## Installation
+## Install
 
 ```bash
 git clone https://github.com/moadh704/accessprobe.git
 cd accessprobe
 pip install -e .
-pip install -e ".[dev]"   # pytest, etc.
+pip install -e ".[dev]"   # optional
 ```
-
----
 
 ## Quick start
 
-### 1. Sessions (cookies)
-
 ```bash
 mkdir -p cookies
-# Export with a browser extension (e.g. Get cookies.txt LOCALLY)
-# cookies/user.txt  cookies/admin.txt
-```
+# put browser-exported cookies in cookies/user.txt and cookies/admin.txt
 
-### 2. Config
-
-```bash
 cp examples/example_config.yaml my_scan.yaml
-# Edit URL, roles, own_ids, privileged_roles
-```
+# edit URL, roles, own_ids, privileged_roles
 
-### 3. Scan
-
-```bash
 accessprobe scan --config my_scan.yaml \
   --report results.json --html-report report.html
 ```
 
-### CLI without config
+Without a config file:
 
 ```bash
 accessprobe scan \
@@ -109,9 +71,7 @@ accessprobe scan \
   --report out.json
 ```
 
-### Path parameters (important)
-
-Use a `{name}` placeholder in the URL:
+Path parameters need a `{name}` placeholder:
 
 ```bash
 accessprobe scan \
@@ -120,16 +80,13 @@ accessprobe scan \
   --original-role alice --test-roles bob
 ```
 
-### Discover parameters
+Discover parameters:
 
 ```bash
 accessprobe discover --url "https://target.example.com/profile?user_id=1" --cookie "session=..."
-accessprobe scan --config my_scan.yaml --discover
 ```
 
----
-
-## Accuracy context (v0.4)
+## Ownership and privileged roles
 
 ```yaml
 scan:
@@ -142,31 +99,27 @@ scan:
 
 | Setting | Effect |
 |---------|--------|
-| `own_ids` | If role accesses an ID they own → **not** reported as IDOR |
-| `privileged_roles` | Intended broad access for that role is **suppressed** |
-| Without them | Tool still works; expect more leads to triage manually |
+| `own_ids` | Role accessing its own IDs is not reported as IDOR |
+| `privileged_roles` | That role’s broad access is not treated as a finding |
+| Omitted | Tool still runs; more leads need manual review |
 
-CLI equivalents: `--own-ids alice=1;bob=2` and `--privileged-roles admin`.
+CLI: `--own-ids alice=1;bob=2` and `--privileged-roles admin`.
 
----
-
-## Useful flags
+## Flags
 
 | Flag | Description |
 |------|-------------|
-| `--min-confidence 0.55` | Minimum confidence to mark vulnerable |
-| `--delay 0.25` | Seconds between requests |
+| `--min-confidence 0.55` | Min confidence to mark vulnerable |
+| `--delay 0.25` | Delay between requests (seconds) |
 | `--no-horizontal` | Skip same-role alternate-ID tests |
-| `--own-ids` | Ownership map (reduce self-access FPs) |
-| `--privileged-roles` | Roles with intended broad access |
+| `--own-ids` | Ownership map |
+| `--privileged-roles` | Privileged roles |
 | `--location query\|path\|body\|header\|cookie` | Parameter placement |
-| `--discover` | Auto-discover parameters |
+| `--discover` | Discover parameters during scan |
 
----
+## Labs
 
-## Local labs
-
-### Built-in multi-user IDOR lab
+Local IDOR lab:
 
 ```bash
 python labs/idor_lab/server.py 8765
@@ -176,47 +129,35 @@ accessprobe scan --config labs/idor_lab/scan_vuln.yaml \
 
 accessprobe scan --config labs/idor_lab/scan_secure.yaml \
   --report labs/results/v0.4/secure.json
-# → expect 0 vulnerable findings with ownership + privileged roles
+# with default config: 0 vulnerable findings on secure profile
 ```
 
-### OWASP Juice Shop (local)
+Juice Shop (must already be on `127.0.0.1:3000`):
 
 ```bash
-# Juice Shop on 127.0.0.1:3000
 python labs/juice_shop/setup_and_scan.py
 ```
 
-See [`labs/juice_shop/README.md`](labs/juice_shop/README.md).
-
----
+See [labs/idor_lab/README.md](labs/idor_lab/README.md) and [labs/juice_shop/README.md](labs/juice_shop/README.md).
 
 ## Development
 
 ```bash
 pip install -e ".[dev]"
-pytest -q
-# expected: 33 passed
+pytest -q   # 33 passed
 ```
 
----
-
-## Project structure
+## Layout
 
 ```text
-accessprobe/          # scanner package
-docs/
-  TEST_PLAN.md        # validation program
-  TEST_RESULTS.md     # portfolio-ready report
-  assets/             # screenshots for README
-labs/idor_lab/        # multi-user local target
-labs/juice_shop/      # Juice Shop helper (no secrets committed)
-labs/results/         # scan artifacts
-tests/                # unit + integration tests
+accessprobe/       package
+docs/              TEST_PLAN.md, TEST_RESULTS.md, assets/
+labs/idor_lab/     multi-user local target
+labs/juice_shop/   Juice Shop helper (secrets not committed)
+labs/results/      scan artifacts
+tests/
 ```
-
----
 
 ## Disclaimer
 
-**Authorized security testing and education only.**  
-Only use AccessProbe on systems you own or have explicit permission to test. All validation in this repository was performed on `127.0.0.1`.
+For authorized testing and education only. Only use on systems you own or have permission to test. Repo validation was run on `127.0.0.1`.

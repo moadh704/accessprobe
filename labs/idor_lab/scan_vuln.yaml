@@ -19,8 +19,7 @@ scan:
     - bob
     - admin
   method: GET
-  # Accuracy context — suppresses self-access FPs; admin still sees broken ACL
-  # as non-privileged here so real horizontal IDORs remain visible for all roles.
+  # own_ids suppress self-access; admin not listed as privileged (broken ACL still visible)
   own_ids:
     alice: ["1"]
     bob: ["2"]

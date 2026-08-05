@@ -19,7 +19,7 @@ scan:
     - bob
     - admin
   method: GET
-  # Self-access + intended admin access should not raise as IDOR
+  # suppress self-access and intended admin
   own_ids:
     alice: ["1"]
     bob: ["2"]
