@@ -1,0 +1,388 @@
+{
+  "generated_at": "2026-08-05 13:19:18",
+  "total_tests": 1,
+  "total_findings": 20,
+  "vulnerable_findings": 5,
+  "findings": [
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "2",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 1.0,
+      "evidence": "Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (6 hits)",
+      "similarity_score": 0.873,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "0",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "6",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "11",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "10000000001",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "private_notes",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.109,
+      "original_status": 200,
+      "modified_status": 400,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "1",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "low",
+      "confidence": 0.72,
+      "evidence": "Same object accessible by both roles with sensitive content (possible broken access control; verify intended sharing); Interesting keywords found in response (6 hits)",
+      "similarity_score": 1.0,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": false
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "2",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.96,
+      "evidence": "Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (6 hits)",
+      "similarity_score": 0.873,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "0",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "6",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "11",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "10000000001",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "private_notes",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.109,
+      "original_status": 200,
+      "modified_status": 400,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "1",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "admin"
+      ],
+      "is_vulnerable": true,
+      "severity": "low",
+      "confidence": 0.72,
+      "evidence": "Same object accessible by both roles with sensitive content (possible broken access control; verify intended sharing); Interesting keywords found in response (6 hits)",
+      "similarity_score": 1.0,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": false
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "2",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "admin"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.96,
+      "evidence": "Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (6 hits)",
+      "similarity_score": 0.873,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "0",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "admin"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "6",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "admin"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "11",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "admin"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "10000000001",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "admin"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.164,
+      "original_status": 200,
+      "modified_status": 404,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "user_id",
+      "location": "query",
+      "tested_value": "private_notes",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "admin"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.109,
+      "original_status": 200,
+      "modified_status": 400,
+      "horizontal": false,
+      "value_changed": true
+    }
+  ]
+}

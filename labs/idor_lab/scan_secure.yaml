@@ -1,0 +1,25 @@
+# Secure profile endpoint — foreign IDs should be 403 for alice
+sessions:
+  - name: alice
+    cookie_file: cookies/alice.txt
+    description: "Low privilege user (owns user_id=1)"
+  - name: bob
+    cookie_file: cookies/bob.txt
+    description: "Other user (owns user_id=2)"
+  - name: admin
+    cookie_file: cookies/admin.txt
+    description: "Administrator"
+
+scan:
+  target:
+    url: "http://127.0.0.1:8765/secure/profile"
+    description: "Correct ACL profile API"
+  original_role: alice
+  test_roles:
+    - bob
+    - admin
+  method: GET
+  parameters:
+    - name: user_id
+      location: query
+      value: "1"

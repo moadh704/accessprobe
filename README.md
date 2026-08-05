@@ -109,6 +109,19 @@ pip install -e ".[dev]"
 pytest
 ```
 
+## Local lab & test results
+
+A multi-user IDOR lab lives under [`labs/idor_lab/`](labs/idor_lab/) for authorized local testing:
+
+```bash
+python labs/idor_lab/server.py 8765
+accessprobe scan --config labs/idor_lab/scan_vuln.yaml --report /tmp/vuln.json
+```
+
+Full environment, target matrix, curl ground truth, and TP/FP analysis:
+
+→ **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**
+
 ## Disclaimer
 
 This tool is for **authorized security testing and educational purposes only**.

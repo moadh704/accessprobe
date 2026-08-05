@@ -1,0 +1,217 @@
+{
+  "generated_at": "2026-08-05 13:19:23",
+  "total_tests": 1,
+  "total_findings": 11,
+  "vulnerable_findings": 11,
+  "findings": [
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "101",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 1.0,
+      "evidence": "Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.991,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "99",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 1.0,
+      "evidence": "Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.968,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "105",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 1.0,
+      "evidence": "Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.982,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "110",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 1.0,
+      "evidence": "Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.982,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "owner_user_id",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 1.0,
+      "evidence": "Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.922,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "100",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "low",
+      "confidence": 0.72,
+      "evidence": "Same object accessible by both roles with sensitive content (possible broken access control; verify intended sharing); Interesting keywords found in response (4 hits)",
+      "similarity_score": 1.0,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": false
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "101",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.96,
+      "evidence": "Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.991,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "99",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.96,
+      "evidence": "Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.968,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "105",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.96,
+      "evidence": "Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.982,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "110",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.96,
+      "evidence": "Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.982,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "order_id",
+      "location": "query",
+      "tested_value": "owner_user_id",
+      "original_value": "100",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.96,
+      "evidence": "Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (4 hits)",
+      "similarity_score": 0.922,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    }
+  ]
+}

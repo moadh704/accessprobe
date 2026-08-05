@@ -1,0 +1,18 @@
+# Orders endpoint — object-level auth broken for any authed role
+sessions:
+  - name: alice
+    cookie_file: cookies/alice.txt
+  - name: bob
+    cookie_file: cookies/bob.txt
+
+scan:
+  target:
+    url: "http://127.0.0.1:8765/orders"
+  original_role: alice
+  test_roles:
+    - bob
+  method: GET
+  parameters:
+    - name: order_id
+      location: query
+      value: "100"
