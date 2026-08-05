@@ -1,0 +1,293 @@
+{
+  "generated_at": "2026-08-05 15:55:41",
+  "total_tests": 1,
+  "total_findings": 15,
+  "vulnerable_findings": 0,
+  "findings": [
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "2",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "0",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "6",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "11",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 1.0,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "webkit-font-smoothing",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.993,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "144",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "100",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "1",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 1.0,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": false,
+      "value_changed": false
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "2",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "0",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "6",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "11",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 1.0,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "webkit-font-smoothing",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.993,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "144",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "100",
+      "original_value": "1",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.999,
+      "original_status": 500,
+      "modified_status": 500,
+      "horizontal": false,
+      "value_changed": true
+    }
+  ]
+}

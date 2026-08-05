@@ -1,42 +1,46 @@
 # AccessProbe — Testing Plan
 
-**Version:** 0.3.0  
-**Last Updated:** 2026-08-05  
-**Purpose:** Systematic plan to validate accuracy, robustness, and usability of AccessProbe.
+| Field | Value |
+|-------|--------|
+| **Version** | 0.3.0 |
+| **Last updated** | 2026-08-05 |
+| **Companion report** | [`docs/TEST_RESULTS.md`](TEST_RESULTS.md) |
+| **Audience** | Maintainers, AI agents, portfolio reviewers |
 
-This document is designed so that a human or AI assistant can follow it step-by-step and produce consistent, reproducible results.
+This plan is written so a human or AI assistant can execute it step-by-step and produce consistent, reproducible results suitable for public documentation.
 
 ---
 
 ## 1. Goals
 
-| Goal                              | Description                                      |
-|-----------------------------------|--------------------------------------------------|
-| Accuracy                          | Maximize true positives, minimize false positives |
-| Reliability                       | Stable CLI, correct exit codes, no crashes       |
-| Coverage                          | Support common IDOR patterns and parameter locations |
-| Usability                         | Clear reports, good error messages, easy config  |
-| Reproducibility                   | All tests can be re-run with the same results    |
+| Goal | Description |
+|------|-------------|
+| Accuracy | Maximize true positives; minimize false positives on correct ACLs |
+| Reliability | Stable CLI, no crashes, clear errors |
+| Coverage | Common IDOR patterns: query, path, multi-role, horizontal |
+| Usability | Readable reports, simple YAML, cookie + header auth |
+| Reproducibility | Every claim can be re-run on `127.0.0.1` |
+| Portfolio quality | Honest limitations, ground truth, artifact paths |
 
 ---
 
-## 2. Testing Phases Overview
+## 2. Phase status
 
-| Phase | Name                        | Priority | Status        |
-|-------|-----------------------------|----------|---------------|
-| 1     | Unit Tests                  | Critical | Done (28/28)  |
-| 2     | Local IDOR Lab              | Critical | Done          |
-| 3     | Accuracy Analysis           | Critical | Done          |
-| 4     | Real Vulnerable Labs        | High     | Pending       |
-| 5     | Edge Cases & Robustness     | High     | Pending       |
-| 6     | Usability & Reporting       | Medium   | Pending       |
-| 7     | Advanced Features           | Medium   | Pending       |
+| Phase | Name | Priority | Status |
+|-------|------|----------|--------|
+| 1 | Unit tests | Critical | **Done** (28/28) |
+| 2 | Local IDOR lab | Critical | **Done** |
+| 3 | Accuracy analysis | Critical | **Done** |
+| 4 | Real vulnerable labs | High | **Done** (Juice Shop local); DVWA / PortSwigger / bWAPP optional next |
+| 5 | Edge cases & robustness | High | **Done** (core cases); expand UUIDs / 429 later |
+| 6 | Usability & reporting | Medium | **Done** |
+| 7 | Advanced features | Medium | **Pending** (product work) |
+
+Detailed outcomes → **[TEST_RESULTS.md](TEST_RESULTS.md)**.
 
 ---
 
-## 3. Phase 1 — Unit Tests
-
-### Commands
+## 3. Phase 1 — Unit tests
 
 ```bash
 pip install -e ".[dev]"
@@ -44,29 +48,24 @@ pytest -q
 pytest -v --tb=short
 ```
 
-### Success Criteria
+**Success criteria**
 
 - All tests pass
-- No warnings that indicate broken logic
-- Coverage of core modules: models, session, config, detector, tester, discovery, reporter, cli
+- Core modules covered: models, session, config, detector, tester, discovery, reporter, cli
 
-### Expected Result
-
-```
-28 passed
-```
+**Expected:** `28 passed`
 
 ---
 
-## 4. Phase 2 — Local IDOR Laboratory
+## 4. Phase 2 — Local IDOR laboratory
 
 ### Location
 
-```
+```text
 labs/idor_lab/
 ```
 
-### Start the lab
+### Start
 
 ```bash
 python labs/idor_lab/server.py 8765
@@ -74,205 +73,207 @@ python labs/idor_lab/server.py 8765
 
 ### Sessions
 
-| Cookie value | user_id | Role  |
-|--------------|---------|-------|
-| alice        | 1       | user  |
-| bob          | 2       | user  |
-| admin        | 3       | admin |
+| Cookie value | user_id | Role |
+|--------------|---------|------|
+| alice | 1 | user |
+| bob | 2 | user |
+| admin | 3 | admin |
 
-### Required Scans
+### Required scans
 
 ```bash
-# Vulnerable profile (should find horizontal IDORs)
 accessprobe scan --config labs/idor_lab/scan_vuln.yaml \
   --report labs/results/vuln.json --html-report labs/results/vuln.html --delay 0.05
 
-# Secure profile (should be quiet on horizontal)
 accessprobe scan --config labs/idor_lab/scan_secure.yaml \
   --report labs/results/secure.json --html-report labs/results/secure.html --delay 0.05
 
-# Orders (broken object-level auth)
 accessprobe scan --config labs/idor_lab/scan_orders.yaml \
   --report labs/results/orders.json --delay 0.05
 
-# Parameter discovery
-accessprobe discover --url http://127.0.0.1:8765/ --cookie 'session=alice'
+accessprobe discover --url http://127.0.0.1:8765/ --cookie "session=alice"
 ```
 
-### Manual Verification (curl)
+### Manual verification
 
 ```bash
-# Confirm real IDOR
-curl -s -H 'Cookie: session=alice' 'http://127.0.0.1:8765/vuln/profile?user_id=2'
-
-# Confirm correct ACL
-curl -s -o /dev/null -w '%{http_code}\n' -H 'Cookie: session=alice' \
-  'http://127.0.0.1:8765/secure/profile?user_id=2'
+curl -s -H "Cookie: session=alice" "http://127.0.0.1:8765/vuln/profile?user_id=2"
+curl -s -o /dev/null -w "%{http_code}\n" -H "Cookie: session=alice" \
+  "http://127.0.0.1:8765/secure/profile?user_id=2"
 ```
 
-### Success Criteria
+### Success criteria
 
-| Scenario                        | Expected Result                     |
-|---------------------------------|-------------------------------------|
-| Horizontal IDOR (vuln)          | High confidence true positives      |
-| Secure horizontal               | No false positives on foreign IDs   |
-| Orders endpoint                 | All horizontal mutations flagged    |
-| Discovery                       | Finds `user_id`, `order_id`, etc.   |
-
----
-
-## 5. Phase 3 — Accuracy Analysis
-
-After each scan, classify every finding:
-
-| Classification | Meaning                                      |
-|----------------|----------------------------------------------|
-| **TP**         | Real IDOR correctly detected                 |
-| **FP**         | Legitimate access incorrectly flagged        |
-| **TN**         | Correctly not flagged                        |
-| **FN**         | Real IDOR missed                             |
-
-### Focus Areas
-
-1. Horizontal IDOR accuracy (same role, different object IDs)
-2. Cross-role noise (self-access and intended admin access)
-3. Confidence score reliability
-4. Noise from bad candidate values
-
-### Document Results In
-
-- `docs/TEST_RESULTS.md`
+| Scenario | Expected |
+|----------|----------|
+| Horizontal IDOR (vuln) | High-confidence true positives |
+| Secure horizontal | No FP on foreign user IDs for non-admins |
+| Orders | Horizontal mutations flagged |
+| Discovery | Finds `user_id`, `order_id`, etc. |
 
 ---
 
-## 6. Phase 4 — Real Vulnerable Labs (Next Priority)
+## 5. Phase 3 — Accuracy analysis
 
-### Recommended Targets
+Classify every notable finding:
 
-| Lab                        | What to Test                              | Priority |
-|---------------------------|-------------------------------------------|----------|
-| **DVWA**                  | IDOR in User Info / SQL Injection pages   | High     |
-| **OWASP Juice Shop**      | Basket IDOR, user data, order access      | High     |
-| **PortSwigger Web Academy** | Access Control + IDOR labs              | High     |
-| **bWAPP**                 | Multiple IDOR challenges                  | Medium   |
-| Custom local apps         | Controlled edge cases                     | Medium   |
+| Code | Meaning |
+|------|---------|
+| **TP** | Real IDOR correctly detected |
+| **FP** | Legitimate access incorrectly flagged |
+| **TN** | Correctly not flagged |
+| **FN** | Real IDOR missed |
 
-### Testing Protocol for Each Lab
+**Focus areas**
 
-1. Create a dedicated config file under `labs/<lab_name>/`
-2. Export cookies for at least two roles (low privilege + higher privilege)
-3. Run scan with `--report` and `--html-report`
-4. Manually verify top findings with Burp or curl
-5. Record TP / FP / FN in a results table
-6. Update `docs/TEST_RESULTS.md`
+1. Horizontal IDOR accuracy  
+2. Cross-role noise (self-access, intended admin)  
+3. Confidence score reliability  
+4. Noise from bad candidate values  
 
----
-
-## 7. Phase 5 — Edge Cases & Robustness
-
-### Test Cases to Cover
-
-- [ ] Numeric IDs
-- [ ] UUIDs
-- [ ] Sequential / patterned IDs
-- [ ] Path parameters (`/user/{id}`)
-- [ ] JSON body parameters
-- [ ] Missing or invalid cookies
-- [ ] 403 / 404 / 401 / 500 responses
-- [ ] Redirects
-- [ ] Very large responses
-- [ ] Rate limiting (429)
-- [ ] Empty / malformed config files
-- [ ] Non-existent parameters
-- [ ] High number of candidate values
-
-### Success Criteria
-
-- Tool does not crash
-- Clear error messages
-- Exit codes are meaningful
-- Rate limiting works as expected
+Document in `docs/TEST_RESULTS.md`.
 
 ---
 
-## 8. Phase 6 — Usability & Reporting
+## 6. Phase 4 — Real vulnerable labs
+
+### Targets
+
+| Lab | What to test | Priority | Status in this repo |
+|-----|--------------|----------|---------------------|
+| **OWASP Juice Shop** (local) | Basket path IDOR, JWT headers | High | **Executed** — see results |
+| DVWA | User info / IDOR-style pages | High | Optional follow-up |
+| PortSwigger Web Academy | Access control labs | High | Optional (needs account + lab VM) |
+| bWAPP | Multiple IDOR challenges | Medium | Optional |
+| Custom local apps | Edge cases | Medium | Covered by `idor_lab` |
+
+### Protocol for each lab
+
+1. Create config under `labs/<lab_name>/` (never commit live secrets).
+2. Capture at least two roles / users.
+3. Verify ground truth with curl/httpx.
+4. Run scan with `--report` and `--html-report`.
+5. Classify TP/FP/FN.
+6. Update `TEST_RESULTS.md`.
+
+### Juice Shop quick path
+
+```bash
+# Juice Shop must already be running on 127.0.0.1:3000
+python labs/juice_shop/setup_and_scan.py
+```
+
+See `labs/juice_shop/README.md`.
+
+---
+
+## 7. Phase 5 — Edge cases & robustness
 
 ### Checklist
 
-- [ ] CLI help is clear
-- [ ] Error messages are actionable
-- [ ] JSON report is complete and well-structured
-- [ ] HTML report is readable and professional
-- [ ] Confidence scores are visible and useful
-- [ ] Config file with `cookie_file` works reliably
-- [ ] Multi-parameter scanning works correctly
+- [x] Numeric IDs  
+- [ ] UUIDs (unit patterns only — expand lab)  
+- [x] Sequential / patterned IDs  
+- [x] Path parameters (`/resource/{id}`)  
+- [ ] JSON body parameters (code support; dedicated lab case next)  
+- [x] Missing or invalid cookies / sessions  
+- [x] 403 / 404 / 401 responses  
+- [ ] Redirects  
+- [ ] Very large responses  
+- [ ] Rate limiting (429)  
+- [x] Empty / malformed / missing config files  
+- [x] Non-existent parameters / IDs  
+- [x] Noisy candidate values  
+
+### Success criteria
+
+- Tool does not crash  
+- Clear error messages  
+- Rate limiting (`--delay`) works  
+- Path params require `{name}` in URL  
 
 ---
 
-## 9. Phase 7 — Advanced Features (Future)
+## 8. Phase 6 — Usability & reporting
 
-These improve accuracy and reduce noise:
+### Checklist
 
-- [ ] Ownership map support (`--own-ids` or config)
-- [ ] Privileged role handling (`--privileged-roles`)
-- [ ] Better candidate filtering (exclude field names)
-- [ ] Minimum confidence threshold (`--min-confidence`)
-- [ ] Horizontal-only mode improvements
-- [ ] JWT / Bearer token support
-- [ ] CSRF token handling
-
----
-
-## 10. How to Document Results
-
-For every significant test run, update or create an entry in `docs/TEST_RESULTS.md` with:
-
-1. Date and version
-2. Target description
-3. Commands used
-4. Summary table (TP / FP / TN / FN)
-5. Notable findings
-6. Strengths observed
-7. Limitations discovered
-8. Recommendations
+- [x] CLI help is clear  
+- [x] Error messages are actionable  
+- [x] JSON report is complete  
+- [x] HTML report is readable  
+- [x] Confidence scores visible  
+- [x] `cookie_file` works  
+- [x] Header-based sessions (JWT) work  
+- [x] Multi-parameter scanning supported in config  
 
 ---
 
-## 11. Recommended Execution Order
+## 9. Phase 7 — Advanced features (product backlog)
 
-1. Always run `pytest -q` first
-2. Re-run the local lab suite and confirm results still match `docs/TEST_RESULTS.md`
-3. Move to real labs (start with DVWA or Juice Shop)
-4. Document accuracy carefully
-5. Fix high-impact false positives (ownership / privileged roles)
-6. Expand edge-case coverage
+- [ ] Ownership map (`--own-ids` or config)  
+- [ ] Privileged role handling (`--privileged-roles`)  
+- [ ] Better candidate filtering (exclude field names / dates)  
+- [x] Minimum confidence threshold (`--min-confidence`) — exists  
+- [ ] Horizontal-only mode refinements  
+- [ ] First-class JWT helpers (beyond raw headers)  
+- [ ] CSRF token handling  
+- [ ] Non-zero exit code when high-confidence findings exist  
 
 ---
 
-## 12. Authorization Rule
+## 10. How to document results
+
+For every significant campaign, update `docs/TEST_RESULTS.md` with:
+
+1. Date and version  
+2. Target description and authorization statement  
+3. Commands used  
+4. Ground truth  
+5. Summary tables (TP / FP / TN / FN)  
+6. Strengths  
+7. Limitations  
+8. Recommendations  
+9. Artifact index  
+
+Tone: professional, honest, portfolio-ready. Prefer evidence over marketing language.
+
+---
+
+## 11. Recommended execution order
+
+1. `pytest -q`  
+2. Re-run local lab suite; confirm still matches report narrative  
+3. Juice Shop (or other authorized local app)  
+4. Document accuracy carefully  
+5. Prioritize product fixes for ownership / privileged roles  
+6. Expand edge-case matrix  
+
+---
+
+## 12. Authorization rule
 
 **Only test systems you own or have explicit written permission to test.**
 
-All laboratory testing must stay on `127.0.0.1` or authorized targets.
+Default lab traffic stays on `127.0.0.1`. Never point AccessProbe at production or third-party assets without a signed scope.
 
 ---
 
-## 13. Quick Reference Commands
+## 13. Quick reference
 
 ```bash
 # Unit tests
 pytest -q
 
-# Start local lab
+# Local lab
 python labs/idor_lab/server.py 8765
-
-# Core local scans
 accessprobe scan --config labs/idor_lab/scan_vuln.yaml --report labs/results/vuln.json --html-report labs/results/vuln.html
 accessprobe scan --config labs/idor_lab/scan_secure.yaml --report labs/results/secure.json
 accessprobe scan --config labs/idor_lab/scan_orders.yaml --report labs/results/orders.json
+accessprobe discover --url http://127.0.0.1:8765/ --cookie "session=alice"
 
-# Discovery
-accessprobe discover --url http://127.0.0.1:8765/ --cookie 'session=alice'
+# Juice Shop (local)
+python labs/juice_shop/setup_and_scan.py
 ```
 
 ---

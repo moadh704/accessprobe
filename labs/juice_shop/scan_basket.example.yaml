@@ -1,0 +1,27 @@
+# Template only — replace tokens and basket IDs after login.
+# Prefer: python labs/juice_shop/setup_and_scan.py
+#
+# Path parameters require a {name} placeholder in the URL.
+
+sessions:
+  - name: alice
+    headers:
+      Authorization: "Bearer <ALICE_JWT>"
+    description: "Low privilege shopper (own basket id below)"
+  - name: bob
+    headers:
+      Authorization: "Bearer <BOB_JWT>"
+    description: "Other shopper"
+
+scan:
+  target:
+    url: "http://127.0.0.1:3000/rest/basket/{id}"
+    description: "Juice Shop shopping basket (path IDOR)"
+  original_role: alice
+  test_roles:
+    - bob
+  method: GET
+  parameters:
+    - name: id
+      location: path
+      value: "<ALICE_BASKET_ID>"

@@ -106,21 +106,48 @@ See `examples/example_config.yaml` for a full example.
 
 ```bash
 pip install -e ".[dev]"
-pytest
+pytest -q
+# expected: 28 passed
 ```
 
-## Local lab & test results
+## Validation & labs
 
-A multi-user IDOR lab lives under [`labs/idor_lab/`](labs/idor_lab/) for authorized local testing:
+AccessProbe ships a full testing program designed for reproducible, authorized demos:
+
+| Document | Purpose |
+|----------|---------|
+| **[docs/TEST_PLAN.md](docs/TEST_PLAN.md)** | Step-by-step validation plan (unit → lab → real app → edges) |
+| **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)** | Portfolio-ready report: ground truth, TP/FP analysis, Juice Shop results |
+
+### Built-in multi-user IDOR lab
 
 ```bash
 python labs/idor_lab/server.py 8765
-accessprobe scan --config labs/idor_lab/scan_vuln.yaml --report /tmp/vuln.json
+accessprobe scan --config labs/idor_lab/scan_vuln.yaml \
+  --report labs/results/vuln.json --html-report labs/results/vuln.html
+accessprobe scan --config labs/idor_lab/scan_secure.yaml \
+  --report labs/results/secure.json
 ```
 
-Full environment, target matrix, curl ground truth, and TP/FP analysis:
+### OWASP Juice Shop (local)
 
-→ **[docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)**
+If you run Juice Shop on `127.0.0.1:3000`:
+
+```bash
+python labs/juice_shop/setup_and_scan.py
+```
+
+See [`labs/juice_shop/README.md`](labs/juice_shop/README.md). Horizontal basket IDOR is the demonstrated path (`GET /rest/basket/{id}` with Bearer JWT).
+
+### Headline validation results (v0.3.0)
+
+| Check | Result |
+|-------|--------|
+| Unit tests | **28/28 passed** |
+| Horizontal IDOR on broken lab ACL | High-confidence **true positives** |
+| Foreign IDs on correct lab ACL | **Not flagged** (true negatives) |
+| Juice Shop basket path IDOR | Detected (confidence **1.00**) |
+| Cross-role / self-access | Manual triage still required |
 
 ## Disclaimer
 

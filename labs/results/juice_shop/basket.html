@@ -118,7 +118,7 @@
         <body>
             <div class="container">
                 <h1>AccessProbe</h1>
-                <p class="subtitle">IDOR &amp; Broken Access Control Report • 2026-08-05 15:52:34</p>
+                <p class="subtitle">IDOR &amp; Broken Access Control Report • 2026-08-05 15:56:04</p>
 
                 <div class="summary">
                     <div class="summary-grid">
@@ -127,11 +127,11 @@
                             <div class="stat-label">Tests Run</div>
                         </div>
                         <div class="stat">
-                            <div class="stat-value">20</div>
+                            <div class="stat-value">13</div>
                             <div class="stat-label">Total Findings</div>
                         </div>
                         <div class="stat">
-                            <div class="stat-value" style="color: #ef4444;">5</div>
+                            <div class="stat-value" style="color: #ef4444;">8</div>
                             <div class="stat-label">Vulnerable</div>
                         </div>
                     </div>
@@ -153,8 +153,8 @@
                     <tbody>
                         
                         <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>2</code></td>
+                            <td><strong>id</strong></td>
+                            <td><code>9</code></td>
                             <td>alice → alice</td>
                             <td>200</td>
                             <td class="vulnerable">
@@ -162,90 +162,90 @@
                             </td>
                             <td class="severity-high">HIGH</td>
                             <td><span class="confidence">1.00</span></td>
-                            <td>Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (6 hits)</td>
+                            <td>Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (3 hits)</td>
                         </tr>
                         
                         <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>0</code></td>
+                            <td><strong>id</strong></td>
+                            <td><code>7</code></td>
                             <td>alice → alice</td>
-                            <td>404</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>6</code></td>
-                            <td>alice → alice</td>
-                            <td>404</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>11</code></td>
-                            <td>alice → alice</td>
-                            <td>404</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>10000000001</code></td>
-                            <td>alice → alice</td>
-                            <td>404</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>private_notes</code></td>
-                            <td>alice → alice</td>
-                            <td>400</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>1</code></td>
-                            <td>alice → bob</td>
                             <td>200</td>
                             <td class="vulnerable">
                                 Yes
                             </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.72</span></td>
-                            <td>Same object accessible by both roles with sensitive content (possible broken access control; verify intended sharing); Interesting keywords found in response (6 hits)</td>
+                            <td class="severity-high">HIGH</td>
+                            <td><span class="confidence">1.00</span></td>
+                            <td>Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (3 hits)</td>
                         </tr>
                         
                         <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>2</code></td>
+                            <td><strong>id</strong></td>
+                            <td><code>13</code></td>
+                            <td>alice → alice</td>
+                            <td>200</td>
+                            <td class="vulnerable">
+                                Yes
+                            </td>
+                            <td class="severity-high">HIGH</td>
+                            <td><span class="confidence">0.75</span></td>
+                            <td>Horizontal IDOR: role 'alice' received 200 for a different object ID</td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>id</strong></td>
+                            <td><code>18</code></td>
+                            <td>alice → alice</td>
+                            <td>200</td>
+                            <td class="vulnerable">
+                                Yes
+                            </td>
+                            <td class="severity-high">HIGH</td>
+                            <td><span class="confidence">0.75</span></td>
+                            <td>Horizontal IDOR: role 'alice' received 200 for a different object ID</td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>id</strong></td>
+                            <td><code>2026-08-05T14</code></td>
+                            <td>alice → alice</td>
+                            <td>200</td>
+                            <td class="vulnerable">
+                                Yes
+                            </td>
+                            <td class="severity-high">HIGH</td>
+                            <td><span class="confidence">0.75</span></td>
+                            <td>Horizontal IDOR: role 'alice' received 200 for a different object ID</td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>id</strong></td>
+                            <td><code>2026</code></td>
+                            <td>alice → alice</td>
+                            <td>200</td>
+                            <td class="vulnerable">
+                                Yes
+                            </td>
+                            <td class="severity-high">HIGH</td>
+                            <td><span class="confidence">0.75</span></td>
+                            <td>Horizontal IDOR: role 'alice' received 200 for a different object ID</td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>id</strong></td>
+                            <td><code>8</code></td>
+                            <td>alice → bob</td>
+                            <td>200</td>
+                            <td class="safe">
+                                No
+                            </td>
+                            <td class="severity-low">LOW</td>
+                            <td><span class="confidence">0.00</span></td>
+                            <td>-</td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>id</strong></td>
+                            <td><code>9</code></td>
                             <td>alice → bob</td>
                             <td>200</td>
                             <td class="vulnerable">
@@ -253,105 +253,27 @@
                             </td>
                             <td class="severity-high">HIGH</td>
                             <td><span class="confidence">0.96</span></td>
-                            <td>Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (6 hits)</td>
+                            <td>Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (3 hits)</td>
                         </tr>
                         
                         <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>0</code></td>
+                            <td><strong>id</strong></td>
+                            <td><code>7</code></td>
                             <td>alice → bob</td>
-                            <td>404</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>6</code></td>
-                            <td>alice → bob</td>
-                            <td>404</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>11</code></td>
-                            <td>alice → bob</td>
-                            <td>404</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>10000000001</code></td>
-                            <td>alice → bob</td>
-                            <td>404</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>private_notes</code></td>
-                            <td>alice → bob</td>
-                            <td>400</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>1</code></td>
-                            <td>alice → admin</td>
-                            <td>200</td>
-                            <td class="vulnerable">
-                                Yes
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.72</span></td>
-                            <td>Same object accessible by both roles with sensitive content (possible broken access control; verify intended sharing); Interesting keywords found in response (6 hits)</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>2</code></td>
-                            <td>alice → admin</td>
                             <td>200</td>
                             <td class="vulnerable">
                                 Yes
                             </td>
                             <td class="severity-high">HIGH</td>
                             <td><span class="confidence">0.96</span></td>
-                            <td>Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (6 hits)</td>
+                            <td>Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (3 hits)</td>
                         </tr>
                         
                         <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>0</code></td>
-                            <td>alice → admin</td>
-                            <td>404</td>
+                            <td><strong>id</strong></td>
+                            <td><code>13</code></td>
+                            <td>alice → bob</td>
+                            <td>200</td>
                             <td class="safe">
                                 No
                             </td>
@@ -361,10 +283,10 @@
                         </tr>
                         
                         <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>6</code></td>
-                            <td>alice → admin</td>
-                            <td>404</td>
+                            <td><strong>id</strong></td>
+                            <td><code>18</code></td>
+                            <td>alice → bob</td>
+                            <td>200</td>
                             <td class="safe">
                                 No
                             </td>
@@ -374,10 +296,10 @@
                         </tr>
                         
                         <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>11</code></td>
-                            <td>alice → admin</td>
-                            <td>404</td>
+                            <td><strong>id</strong></td>
+                            <td><code>2026-08-05T14</code></td>
+                            <td>alice → bob</td>
+                            <td>200</td>
                             <td class="safe">
                                 No
                             </td>
@@ -387,23 +309,10 @@
                         </tr>
                         
                         <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>10000000001</code></td>
-                            <td>alice → admin</td>
-                            <td>404</td>
-                            <td class="safe">
-                                No
-                            </td>
-                            <td class="severity-low">LOW</td>
-                            <td><span class="confidence">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                        
-                        <tr>
-                            <td><strong>user_id</strong></td>
-                            <td><code>private_notes</code></td>
-                            <td>alice → admin</td>
-                            <td>400</td>
+                            <td><strong>id</strong></td>
+                            <td><code>2026</code></td>
+                            <td>alice → bob</td>
+                            <td>200</td>
                             <td class="safe">
                                 No
                             </td>

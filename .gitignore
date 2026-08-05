@@ -148,3 +148,12 @@ Thumbs.db
 # Project specific
 reports/
 __pycache__/
+
+# Generated secrets (Juice Shop JWTs / tokens)
+labs/juice_shop/scan_basket.yaml
+labs/juice_shop/scan_users.yaml
+labs/juice_shop/cookies/*.token
+
+# Local scratch
+*.local.yaml
+.secrets/

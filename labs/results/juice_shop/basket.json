@@ -1,0 +1,255 @@
+{
+  "generated_at": "2026-08-05 15:56:04",
+  "total_tests": 1,
+  "total_findings": 13,
+  "vulnerable_findings": 8,
+  "findings": [
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "9",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 1.0,
+      "evidence": "Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (3 hits)",
+      "similarity_score": 0.961,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "7",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 1.0,
+      "evidence": "Horizontal IDOR: role 'alice' accessed a different object ID with a successful, similar response; Interesting keywords found in response (3 hits)",
+      "similarity_score": 0.909,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "13",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.75,
+      "evidence": "Horizontal IDOR: role 'alice' received 200 for a different object ID",
+      "similarity_score": 0.344,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "18",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.75,
+      "evidence": "Horizontal IDOR: role 'alice' received 200 for a different object ID",
+      "similarity_score": 0.344,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "2026-08-05T14",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.75,
+      "evidence": "Horizontal IDOR: role 'alice' received 200 for a different object ID",
+      "similarity_score": 0.344,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "2026",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "alice"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.75,
+      "evidence": "Horizontal IDOR: role 'alice' received 200 for a different object ID",
+      "similarity_score": 0.344,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": true,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "8",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 1.0,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": false
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "9",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.96,
+      "evidence": "Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (3 hits)",
+      "similarity_score": 0.961,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "7",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": true,
+      "severity": "high",
+      "confidence": 0.96,
+      "evidence": "Cross-role access to alternate object ID with highly similar content; Interesting keywords found in response (3 hits)",
+      "similarity_score": 0.909,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "13",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.344,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "18",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.344,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "2026-08-05T14",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.344,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    },
+    {
+      "parameter": "id",
+      "location": "path",
+      "tested_value": "2026",
+      "original_value": "8",
+      "tested_roles": [
+        "alice",
+        "bob"
+      ],
+      "is_vulnerable": false,
+      "severity": "low",
+      "confidence": 0.0,
+      "evidence": "",
+      "similarity_score": 0.344,
+      "original_status": 200,
+      "modified_status": 200,
+      "horizontal": false,
+      "value_changed": true
+    }
+  ]
+}
