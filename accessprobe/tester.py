@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 
 from .detector import IDORDetector
-from .models import Finding, Parameter, ParameterLocation, TestResult
+from .models import Finding, FindingSeverity, Parameter, ParameterLocation, TestResult
 from .session import SessionManager
 
 # Field-name / noise tokens that look like IDs but rarely are object identifiers
@@ -91,16 +91,15 @@ class IDORTester:
             return False
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}.*", s):
             return False  # ISO-ish dates
-        # When baseline is numeric, prefer numeric candidates
-        if str(original_value).isdigit() and not s.isdigit():
-            # allow UUIDs
-            if not re.fullmatch(
+        orig_numeric = str(original_value).isdigit()
+        is_uuid = bool(
+            re.fullmatch(
                 r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
                 r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
                 s,
-            ):
-                return False
-        return True
+            )
+        )
+        return (not orig_numeric) or s.isdigit() or is_uuid
 
     def _generate_candidate_values(
         self, original_value: Any, response_text: str = ""
@@ -142,6 +141,7 @@ class IDORTester:
 
         if test_role in self.privileged_roles:
             finding.is_vulnerable = False
+            finding.severity = FindingSeverity.LOW
             details["suppressed"] = "privileged_role"
             details["confidence"] = 0.0
             note = (
@@ -157,6 +157,7 @@ class IDORTester:
         owned = self.own_ids.get(test_role, set())
         if str(test_value) in owned:
             finding.is_vulnerable = False
+            finding.severity = FindingSeverity.LOW
             details["suppressed"] = "self_access"
             details["confidence"] = 0.0
             note = (

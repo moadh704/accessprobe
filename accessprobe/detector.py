@@ -178,11 +178,18 @@ class IDORDetector:
                 if severity == FindingSeverity.LOW:
                     severity = FindingSeverity.MEDIUM
 
-        # Rule 5: Large structural difference with success on one side
-        if length_diff > 1200 and similarity < 0.50 and (orig_code == 200 or mod_code == 200):
+        # Rule 5: Large structural difference with success on BOTH sides.
+        # A 200 vs 401/403/404 size gap is expected access control, not IDOR.
+        success_codes = {200, 201, 202}
+        if (
+            length_diff > 1200
+            and similarity < 0.50
+            and orig_code in success_codes
+            and mod_code in success_codes
+        ):
             is_vulnerable = True
             confidence = max(confidence, 0.68)
-            reasons.append("Significant content difference between roles")
+            reasons.append("Significant content difference between successful responses")
             if severity == FindingSeverity.LOW:
                 severity = FindingSeverity.MEDIUM
 

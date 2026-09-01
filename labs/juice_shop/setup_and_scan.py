@@ -82,7 +82,6 @@ def main() -> int:
 
     # ground truth basket IDOR
     h_alice = {"Authorization": f"Bearer {sessions['alice']['token']}"}
-    h_bob = {"Authorization": f"Bearer {sessions['bob']['token']}"}
 
     own = client.get(f"/rest/basket/{alice_bid}", headers=h_alice)
     foreign = client.get(f"/rest/basket/{bob_bid}", headers=h_alice)

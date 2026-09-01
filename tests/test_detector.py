@@ -93,3 +93,43 @@ def test_min_confidence_filter() -> None:
         value_changed=True,
     )
     assert a["is_vulnerable"] is False
+
+
+def test_denied_response_is_not_idor() -> None:
+    """A large 200 vs 403/401 body gap is correct ACL, not a finding."""
+    det = IDORDetector()
+    profile = '{"profile":true,"data":"' + ("A" * 2000) + '"}'
+    forbidden = '{"error":"forbidden","message":"access denied"}'
+    a = det.analyze_responses(
+        mock_resp(200, profile),
+        mock_resp(403, forbidden),
+        "alice",
+        "alice",
+        value_changed=True,
+        same_role=True,
+    )
+    assert a["is_vulnerable"] is False
+
+    b = det.analyze_responses(
+        mock_resp(200, "x" * 1500),
+        mock_resp(401, "login required"),
+        "user",
+        "guest",
+        value_changed=False,
+        same_role=False,
+    )
+    assert b["is_vulnerable"] is False
+
+
+def test_both_success_large_diff_still_a_lead() -> None:
+    det = IDORDetector()
+    a = det.analyze_responses(
+        mock_resp(200, "x" * 100),
+        mock_resp(200, "Welcome admin " + ("y" * 2000)),
+        "user",
+        "admin",
+        value_changed=True,
+        same_role=False,
+    )
+    assert a["is_vulnerable"] is True
+    assert a["confidence"] >= 0.68

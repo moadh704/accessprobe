@@ -2,25 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
-import pytest
-
 from accessprobe.cli import parse_own_ids
-from accessprobe.detector import IDORDetector
-from accessprobe.models import Finding, FindingSeverity, Parameter, ParameterLocation
+from accessprobe.models import Finding, FindingSeverity, Parameter, ParameterLocation, UserSession
 from accessprobe.session import SessionManager
 from accessprobe.tester import IDORTester
-from accessprobe.models import UserSession
-
-
-def mock_resp(code: int, body: str) -> MagicMock:
-    r = MagicMock()
-    r.status_code = code
-    r.content = body.encode()
-    r.text = body
-    r.headers = {}
-    return r
 
 
 def test_parse_own_ids() -> None:
@@ -48,6 +33,7 @@ def test_suppress_self_access() -> None:
     out = tester._apply_context_filters(finding, test_role="bob", test_value="2")
     assert out.is_vulnerable is False
     assert out.details.get("suppressed") == "self_access"
+    assert out.severity == FindingSeverity.LOW
 
 
 def test_suppress_privileged_role() -> None:
@@ -65,6 +51,7 @@ def test_suppress_privileged_role() -> None:
     out = tester._apply_context_filters(finding, test_role="admin", test_value="1")
     assert out.is_vulnerable is False
     assert out.details.get("suppressed") == "privileged_role"
+    assert out.severity == FindingSeverity.LOW
 
 
 def test_noise_candidates_filtered() -> None:

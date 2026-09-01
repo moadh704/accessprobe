@@ -10,6 +10,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from accessprobe import __version__
+
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -29,7 +31,7 @@ def test_cli_version() -> None:
         check=False,
     )
     assert r.returncode == 0
-    assert "0.4.0" in r.stdout
+    assert __version__ in r.stdout
 
 
 def test_cli_help_no_command() -> None:
@@ -118,7 +120,7 @@ scan:
     server.shutdown()
 
     assert "a coroutine was expected" not in (r.stdout + r.stderr)
-    assert r.returncode == 0, r.stdout + r.stderr
+    assert r.returncode == 2, r.stdout + r.stderr
     assert report.exists()
     assert html.exists()
     data = json.loads(report.read_text())

@@ -36,7 +36,7 @@ pip install -e ".[dev]"
 pytest -q
 ```
 
-Expect: `33 passed`.
+Expect: `38 passed`.
 
 ## Phase 2 — Local IDOR lab
 
@@ -125,7 +125,7 @@ Expect: no crashes, clear errors, path URLs use `{name}`.
 - [ ] Horizontal-only refinements
 - [ ] JWT helpers beyond raw headers
 - [ ] CSRF handling
-- [ ] Non-zero exit when high-confidence findings exist
+- [x] Non-zero exit when high-confidence findings exist
 
 ## Documenting a run
 

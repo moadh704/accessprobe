@@ -4,15 +4,15 @@ IDOR and broken access control scanner. Multi-role / multi-session testing, hori
 
 Validated on a local multi-user lab and OWASP Juice Shop (`127.0.0.1` only).
 
-[![Version](https://img.shields.io/badge/version-0.4.0-cyan)](https://github.com/moadh704/accessprobe)
+[![Version](https://img.shields.io/badge/version-0.4.1-cyan)](https://github.com/moadh704/accessprobe)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-33%20passed-brightgreen)](https://github.com/moadh704/accessprobe)
+[![Tests](https://img.shields.io/badge/tests-38%20passed-brightgreen)](https://github.com/moadh704/accessprobe)
 
-## Results (v0.4.0)
+## Results (v0.4.1)
 
 | Check | Result |
 |-------|--------|
-| Tests | 33/33 passed |
+| Tests | 38/38 passed |
 | Broken lab profile (horizontal IDOR) | Detected (confidence 1.00) |
 | Secure lab profile (correct ACL) | 0 false positives with `own_ids` + `privileged_roles` |
 | Juice Shop basket path IDOR | Detected (confidence 1.00) |
@@ -117,6 +117,8 @@ CLI: `--own-ids alice=1;bob=2` and `--privileged-roles admin`.
 | `--location query\|path\|body\|header\|cookie` | Parameter placement |
 | `--discover` | Discover parameters during scan |
 
+Exit codes: `0` scan completed with no findings, `1` config/runtime error, `2` potential IDORs found.
+
 ## Labs
 
 Local IDOR lab:
@@ -144,7 +146,7 @@ See [labs/idor_lab/README.md](labs/idor_lab/README.md) and [labs/juice_shop/READ
 
 ```bash
 pip install -e ".[dev]"
-pytest -q   # 33 passed
+pytest -q   # 38 passed
 ```
 
 ## Layout

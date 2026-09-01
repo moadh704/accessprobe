@@ -377,7 +377,7 @@ async def run_scan(args: argparse.Namespace) -> int:
             reporter.save_html(args.html_report)
             console.print(f"[green]✓ HTML report saved: {args.html_report}[/green]")
 
-    return 0
+    return 2 if total_vuln else 0
 
 
 async def _discover_parameters(

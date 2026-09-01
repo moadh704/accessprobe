@@ -78,14 +78,17 @@ class LabHandler(BaseHTTPRequestHandler):
     server_version = "AccessProbeIDORLab/1.0"
 
     def log_message(self, fmt: str, *args: object) -> None:
-        sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
+        sys.stderr.write(f"{self.address_string()} - {fmt % args}\n")
 
     def _send(self, code: int, body: bytes, content_type: str = "application/json") -> None:
-        self.send_response(code)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            return
 
     def _json(self, code: int, payload: object) -> None:
         self._send(code, json.dumps(payload).encode(), "application/json")
@@ -163,18 +166,16 @@ class LabHandler(BaseHTTPRequestHandler):
                 self._json(404, {"error": "not found"})
                 return
 
-            if path == "/secure/profile":
-                # Correct ACL: own profile or admin
-                if auth["role"] != "admin" and auth["user_id"] != target_id:
-                    self._json(
-                        403,
-                        {
-                            "error": "forbidden",
-                            "message": "access denied",
-                            "user_id": target_id,
-                        },
-                    )
-                    return
+            if path == "/secure/profile" and auth["role"] != "admin" and auth["user_id"] != target_id:
+                self._json(
+                    403,
+                    {
+                        "error": "forbidden",
+                        "message": "access denied",
+                        "user_id": target_id,
+                    },
+                )
+                return
 
             # /vuln/profile: any authenticated user can read any profile (IDOR)
             self._json(200, USERS[target_id])

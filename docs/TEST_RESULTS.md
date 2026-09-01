@@ -2,7 +2,7 @@
 
 | | |
 |--|--|
-| Version | 0.4.0 |
+| Version | 0.4.1 |
 | Date | 2026-08-05 |
 | Environment | Windows · Python 3.14 · Node 24 · `127.0.0.1` only |
 | Targets | Local IDOR lab + local OWASP Juice Shop 19.2.1 |
@@ -15,7 +15,7 @@ No external or production systems were scanned.
 
 | Area | Result |
 |------|--------|
-| Unit / integration tests | 33/33 passed |
+| Unit / integration tests | 38/38 passed |
 | Horizontal IDOR (broken ACL) | Detected (high confidence) |
 | Secure ACL foreign IDs | Not flagged |
 | Self-access / intended admin (with context) | Suppressed → **0** vulnerable findings on secure lab |
@@ -55,7 +55,7 @@ Ground truth checked with curl/httpx before trusting the scanner.
 
 ```text
 $ pytest -q
-33 passed
+38 passed
 ```
 
 ## Local IDOR lab

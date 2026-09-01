@@ -137,8 +137,8 @@ class ParameterDiscoverer:
         params: list[Parameter] = []
 
         patterns = [
-            r'["\']?(user_id|profile_id|item_id|order_id|post_id|comment_id)["\']?\s*[:=]\s*["\']?([\w-]+)["\']?',
-            r'["\']?id["\']?\s*[:=]\s*["\']?([\w-]{3,})["\']?',
+            r'\b(user_id|profile_id|item_id|order_id|post_id|comment_id)\b\s*[:=]\s*["\']?([\w-]+)["\']?',
+            r'\bid\b\s*[:=]\s*["\']?([\w-]{3,})["\']?',
         ]
 
         for pattern in patterns:
@@ -197,9 +197,18 @@ class ParameterDiscoverer:
         return params
 
     def _is_interesting_name(self, name: str) -> bool:
-        """Check if parameter name looks like it could be IDOR-related."""
-        name_lower = name.lower()
-        return any(x in name_lower for x in self.INTERESTING_NAMES)
+        """True when the name is an ID-like token, not a substring of 'hidden'/'valid'."""
+        raw = (name or "").strip()
+        if not raw:
+            return False
+        # userId → user_id so camelCase still matches
+        split_camel = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", raw)
+        normalized = re.sub(r"[^A-Za-z0-9]+", "_", split_camel).lower().strip("_")
+        interesting = {n.lower() for n in self.INTERESTING_NAMES}
+        if normalized in interesting:
+            return True
+        parts = [p for p in normalized.split("_") if p]
+        return any(p in interesting for p in parts)
 
     def get_all_discovered(self, unique: bool = True) -> list[Parameter]:
         """Return discovered parameters."""
