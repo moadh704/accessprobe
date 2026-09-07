@@ -6,11 +6,12 @@ import asyncio
 import re
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
 
 from .detector import IDORDetector
-from .models import Finding, Parameter, ParameterLocation, TestResult
+from .models import Finding, FindingSeverity, Parameter, ParameterLocation, TestResult
 from .session import SessionManager
 
 # Field-name / noise tokens that look like IDs but rarely are object identifiers
@@ -36,6 +37,11 @@ _NOISE_CANDIDATES = {
     "process_params",
 }
 
+_UUID_RE = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+
 
 class IDORTester:
     """Advanced IDOR tester with response-based value extraction."""
@@ -60,27 +66,40 @@ class IDORTester:
 
     def _extract_potential_ids(self, text: str) -> list[str]:
         """Extract potential IDs from response text (numbers, UUIDs, etc)."""
-        ids: set[str] = set()
+        ids: list[str] = []
+        seen: set[str] = set()
+        occupied: list[tuple[int, int]] = []
 
-        for match in re.finditer(r"\b(\d{1,12})\b", text):
-            ids.add(match.group(1))
+        def add(val: str, start: int, end: int) -> None:
+            if val in seen:
+                return
+            seen.add(val)
+            ids.append(val)
+            occupied.append((start, end))
 
-        for match in re.finditer(
-            r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
-            r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
-            text,
-        ):
-            ids.add(match.group(0))
+        def overlaps(start: int, end: int) -> bool:
+            return any(start < b and end > a for a, b in occupied)
+
+        for match in _UUID_RE.finditer(text):
+            add(match.group(0), match.start(), match.end())
+
+        # Skip phone-like +E.164 numbers and digits that sit inside a UUID
+        for match in re.finditer(r"(?<![+\d])(\d{1,12})(?!\d)", text):
+            if overlaps(match.start(), match.end()):
+                continue
+            add(match.group(1), match.start(), match.end())
 
         # Long opaque tokens only when they do not look like field names
         for match in re.finditer(r"\b([a-zA-Z0-9_-]{16,})\b", text):
             token = match.group(1)
+            if overlaps(match.start(), match.end()):
+                continue
             if token.lower() not in _NOISE_CANDIDATES and not re.search(
                 r"(19|20)\d{2}-\d{2}", token
             ):
-                ids.add(token)
+                add(token, match.start(), match.end())
 
-        return list(ids)[:10]
+        return ids[:10]
 
     def _is_plausible_candidate(self, value: Any, original_value: Any) -> bool:
         """Drop obvious noise (JSON keys, timestamps, field names)."""
@@ -91,16 +110,9 @@ class IDORTester:
             return False
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}.*", s):
             return False  # ISO-ish dates
-        # When baseline is numeric, prefer numeric candidates
-        if str(original_value).isdigit() and not s.isdigit():
-            # allow UUIDs
-            if not re.fullmatch(
-                r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
-                r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
-                s,
-            ):
-                return False
-        return True
+        orig_numeric = str(original_value).isdigit()
+        is_uuid = bool(_UUID_RE.fullmatch(s))
+        return (not orig_numeric) or s.isdigit() or is_uuid
 
     def _generate_candidate_values(
         self, original_value: Any, response_text: str = ""
@@ -142,6 +154,7 @@ class IDORTester:
 
         if test_role in self.privileged_roles:
             finding.is_vulnerable = False
+            finding.severity = FindingSeverity.LOW
             details["suppressed"] = "privileged_role"
             details["confidence"] = 0.0
             note = (
@@ -157,6 +170,7 @@ class IDORTester:
         owned = self.own_ids.get(test_role, set())
         if str(test_value) in owned:
             finding.is_vulnerable = False
+            finding.severity = FindingSeverity.LOW
             details["suppressed"] = "self_access"
             details["confidence"] = 0.0
             note = (
@@ -173,6 +187,64 @@ class IDORTester:
 
     def _values_differ(self, a: Any, b: Any) -> bool:
         return str(a) != str(b)
+
+    def _inject_query(self, url: str, parameter: Parameter) -> str:
+        """Set the tested query param without dropping sibling keys.
+
+        httpx ``params=`` replaces the entire query string, so ``?user_id=1&extra=keep``
+        would otherwise become ``?user_id=2``.
+        """
+        parsed = urlparse(url)
+        pairs = [
+            (k, v)
+            for k, v in parse_qsl(parsed.query, keep_blank_values=True)
+            if k != parameter.name
+        ]
+        pairs.append((parameter.name, str(parameter.value)))
+        return urlunparse(parsed._replace(query=urlencode(pairs)))
+
+    def _inject_path(self, url: str, parameter: Parameter) -> str:
+        """Put the test value into a path parameter.
+
+        Prefers ``{name}`` placeholders. Otherwise replaces the last path segment
+        that equals the original ID (``/users/8/profile`` or ``/rest/basket/8``)
+        instead of appending.
+        """
+        name = parameter.name
+        value = str(parameter.value)
+        token = "{" + name + "}"
+        if token in url:
+            return url.replace(token, value)
+
+        parsed = urlparse(url)
+        segs = parsed.path.split("/")
+        current = parameter.original_value
+        current_id = str(current) if current is not None else None
+        if current_id:
+            for i in range(len(segs) - 1, -1, -1):
+                if segs[i] == current_id:
+                    segs[i] = value
+                    return urlunparse(parsed._replace(path="/".join(segs)))
+        if segs and segs[-1] == value:
+            return url
+        new_path = parsed.path.rstrip("/") + f"/{value}"
+        return urlunparse(parsed._replace(path=new_path))
+
+    def _attach_status_codes(
+        self,
+        finding: Finding,
+        analysis: dict[str, Any],
+        original_resp: httpx.Response | None,
+        modified_resp: httpx.Response | None,
+    ) -> None:
+        orig = analysis.get("effective_original_status")
+        if orig is None:
+            orig = original_resp.status_code if original_resp else None
+        mod = analysis.get("effective_modified_status")
+        if mod is None:
+            mod = modified_resp.status_code if modified_resp else None
+        finding.original_response_code = int(orig) if orig is not None else None
+        finding.modified_response_code = int(mod) if mod is not None else None
 
     async def test_parameter(
         self,
@@ -244,11 +316,8 @@ class IDORTester:
                         finding = self.detector.create_finding(
                             modified_param, analysis, original_session, original_session
                         )
-                        finding.original_response_code = (
-                            original_resp.status_code if original_resp else None
-                        )
-                        finding.modified_response_code = (
-                            modified_resp.status_code if modified_resp else None
+                        self._attach_status_codes(
+                            finding, analysis, original_resp, modified_resp
                         )
                         finding.similarity_score = analysis.get("similarity")
                         finding = self._apply_context_filters(
@@ -293,11 +362,8 @@ class IDORTester:
                             finding = self.detector.create_finding(
                                 modified_param, analysis, original_session, test_role
                             )
-                            finding.original_response_code = (
-                                original_resp.status_code if original_resp else None
-                            )
-                            finding.modified_response_code = (
-                                modified_resp.status_code if modified_resp else None
+                            self._attach_status_codes(
+                                finding, analysis, original_resp, modified_resp
                             )
                             finding.similarity_score = analysis.get("similarity")
                             finding = self._apply_context_filters(
@@ -329,16 +395,9 @@ class IDORTester:
             location = parameter.location
 
             if location == ParameterLocation.QUERY:
-                return await client.request(
-                    method, url, params={name: value}
-                )
+                return await client.request(method, self._inject_query(url, parameter))
             if location == ParameterLocation.PATH:
-                token = "{" + name + "}"
-                if token in url:
-                    new_url = url.replace(token, str(value))
-                else:
-                    # Fallback: append /value if no placeholder
-                    new_url = url.rstrip("/") + f"/{value}"
+                new_url = self._inject_path(url, parameter)
                 return await client.request(method, new_url)
             if location == ParameterLocation.BODY:
                 return await client.request(

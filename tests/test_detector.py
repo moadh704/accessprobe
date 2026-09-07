@@ -1,5 +1,6 @@
 """Tests for IDOR detection logic."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from accessprobe.detector import IDORDetector
@@ -93,3 +94,104 @@ def test_min_confidence_filter() -> None:
         value_changed=True,
     )
     assert a["is_vulnerable"] is False
+
+
+def test_denied_response_is_not_idor() -> None:
+    """A large 200 vs 403/401 body gap is correct ACL, not a finding."""
+    det = IDORDetector()
+    profile = '{"profile":true,"data":"' + ("A" * 2000) + '"}'
+    forbidden = '{"error":"forbidden","message":"access denied"}'
+    a = det.analyze_responses(
+        mock_resp(200, profile),
+        mock_resp(403, forbidden),
+        "alice",
+        "alice",
+        value_changed=True,
+        same_role=True,
+    )
+    assert a["is_vulnerable"] is False
+
+    b = det.analyze_responses(
+        mock_resp(200, "x" * 1500),
+        mock_resp(401, "login required"),
+        "user",
+        "guest",
+        value_changed=False,
+        same_role=False,
+    )
+    assert b["is_vulnerable"] is False
+
+
+def test_both_success_large_diff_still_a_lead() -> None:
+    det = IDORDetector()
+    a = det.analyze_responses(
+        mock_resp(200, "x" * 100),
+        mock_resp(200, "Welcome admin " + ("y" * 2000)),
+        "user",
+        "admin",
+        value_changed=True,
+        same_role=False,
+    )
+    assert a["is_vulnerable"] is True
+    assert a["confidence"] >= 0.68
+
+
+def test_login_redirect_is_not_horizontal_idor() -> None:
+    """302 → /login (followed to 200 HTML) must not be scored as IDOR."""
+    det = IDORDetector()
+    profile = '{"user_id":1,"name":"Alice","email":"a@x.com","profile":true}'
+    hop = SimpleNamespace(status_code=302, headers={"location": "/login"})
+    login = SimpleNamespace(
+        status_code=200,
+        content=b"<html>Please login</html>",
+        text="<html>Please login</html>",
+        headers={},
+        url="http://app.local/login",
+        history=[hop],
+    )
+    orig = mock_resp(200, profile)
+    a = det.analyze_responses(
+        orig,
+        login,  # type: ignore[arg-type]
+        "alice",
+        "alice",
+        value_changed=True,
+        same_role=True,
+    )
+    assert a["is_vulnerable"] is False
+    assert a["effective_modified_status"] == 401
+
+
+def test_login_history_path_is_not_treated_as_login() -> None:
+    """Substring '/login' in /login-history must not map a 200 to 401."""
+    det = IDORDetector()
+    profile = '{"user_id":1,"name":"Alice","email":"a@x.com","profile":true}'
+    hop = SimpleNamespace(status_code=302, headers={"location": "/login-history"})
+    page = SimpleNamespace(
+        status_code=200,
+        content=profile.encode(),
+        text=profile,
+        headers={},
+        url="http://app.local/login-history",
+        history=[hop],
+    )
+    orig = mock_resp(200, profile)
+    a = det.analyze_responses(
+        orig,
+        page,  # type: ignore[arg-type]
+        "alice",
+        "alice",
+        value_changed=True,
+        same_role=True,
+    )
+    assert a["effective_modified_status"] == 200
+    assert a["is_vulnerable"] is True
+
+
+def test_is_login_path_suffix_only() -> None:
+    assert IDORDetector._is_login_path("/login") is True
+    assert IDORDetector._is_login_path("/auth/login") is True
+    assert IDORDetector._is_login_path("/signin") is True
+    assert IDORDetector._is_login_path("/login-history") is False
+    assert IDORDetector._is_login_path("/users/login-attempts") is False
+    assert IDORDetector._is_login_path("") is False

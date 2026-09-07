@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 
 def load_cookies_from_file(filepath: str | Path) -> dict[str, str]:
@@ -75,6 +75,33 @@ class ScanConfig(BaseModel):
     own_ids: dict[str, list[str]] = Field(default_factory=dict)
     # roles expected to have broad access (e.g. admin)
     privileged_roles: list[str] = Field(default_factory=list)
+
+    @field_validator("own_ids", mode="before")
+    @classmethod
+    def _coerce_own_ids(cls, value: Any) -> Any:
+        """YAML `alice: [1]` should work the same as `alice: ["1"]`."""
+        if not isinstance(value, dict):
+            return value
+        coerced: dict[str, list[str]] = {}
+        for role, ids in value.items():
+            if ids is None:
+                coerced[str(role)] = []
+            elif isinstance(ids, list):
+                coerced[str(role)] = [str(i) for i in ids]
+            else:
+                coerced[str(role)] = [str(ids)]
+        return coerced
+
+    @field_validator("privileged_roles", mode="before")
+    @classmethod
+    def _coerce_privileged_roles(cls, value: Any) -> Any:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, list):
+            return [str(v) for v in value]
+        return value
 
 
 class AccessProbeConfig(BaseModel):

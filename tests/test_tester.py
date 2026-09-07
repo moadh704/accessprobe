@@ -210,3 +210,115 @@ def test_candidate_generation() -> None:
     assert any(str(v) == "1001" for v in vals2)
     assert any("a1b2c3d4" in str(v) for v in vals2)
     assert len(vals2) <= 8
+
+
+def test_inject_path_replaces_trailing_id() -> None:
+    sm = SessionManager()
+    tester = IDORTester(sm)
+    baseline = Parameter(name="id", location=ParameterLocation.PATH, value="8")
+    assert (
+        tester._inject_path("http://127.0.0.1:3000/rest/basket/8", baseline)
+        == "http://127.0.0.1:3000/rest/basket/8"
+    )
+    modified = Parameter(
+        name="id",
+        location=ParameterLocation.PATH,
+        value="9",
+        original_value="8",
+    )
+    assert (
+        tester._inject_path("http://127.0.0.1:3000/rest/basket/8", modified)
+        == "http://127.0.0.1:3000/rest/basket/9"
+    )
+    placeholder = Parameter(name="id", location=ParameterLocation.PATH, value="9")
+    assert (
+        tester._inject_path("http://127.0.0.1:3000/rest/basket/{id}", placeholder)
+        == "http://127.0.0.1:3000/rest/basket/9"
+    )
+    nested = Parameter(
+        name="id",
+        location=ParameterLocation.PATH,
+        value="9",
+        original_value="8",
+    )
+    assert (
+        tester._inject_path("http://127.0.0.1:3000/users/8/profile", nested)
+        == "http://127.0.0.1:3000/users/9/profile"
+    )
+
+
+def test_inject_query_keeps_sibling_params() -> None:
+    sm = SessionManager()
+    tester = IDORTester(sm)
+    param = Parameter(name="user_id", location=ParameterLocation.QUERY, value="2")
+    out = tester._inject_query(
+        "http://example.com/profile?user_id=1&extra=keep", param
+    )
+    assert "extra=keep" in out
+    assert "user_id=2" in out
+    assert "user_id=1" not in out
+    no_qs = tester._inject_query("http://example.com/profile", param)
+    assert no_qs.endswith("?user_id=2") or "?user_id=2" in no_qs
+
+
+@pytest.mark.asyncio
+async def test_login_redirect_not_reported_as_idor() -> None:
+    class App(BaseHTTPRequestHandler):
+        def log_message(self, *args: object) -> None:
+            return
+
+        def do_GET(self) -> None:
+            path = urlparse(self.path).path
+            qs = parse_qs(urlparse(self.path).query)
+            cookie = self.headers.get("Cookie", "")
+            if path == "/login":
+                body = b"<html>Please login</html>"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            uid = (qs.get("id") or ["1"])[0]
+            if "role=alice" in cookie and uid != "1":
+                self.send_response(302)
+                self.send_header("Location", "/login")
+                self.end_headers()
+                return
+            body = (
+                f'{{"id":{uid},"name":"User{uid}",'
+                f'"email":"u{uid}@ex.com","profile":true}}'
+            ).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = HTTPServer(("127.0.0.1", 0), App)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{port}/profile"
+
+    sm = SessionManager()
+    sm.add_session(UserSession(name="alice", cookies={"role": "alice"}))
+    sm.add_session(UserSession(name="bob", cookies={"role": "bob"}))
+    tester = IDORTester(sm, delay=0.0)
+    param = Parameter(name="id", location=ParameterLocation.QUERY, value="1")
+    result = await tester.test_parameter(
+        parameter=param,
+        target_url=base,
+        original_session="alice",
+        test_sessions=["bob"],
+        values_to_test=["1", "2"],
+        test_horizontal=True,
+    )
+    server.shutdown()
+
+    assert result.success
+    horiz = [
+        f
+        for f in result.findings
+        if f.details.get("same_role") and str(f.parameter.value) == "2"
+    ]
+    assert horiz
+    assert horiz[0].is_vulnerable is False
+    assert horiz[0].modified_response_code == 401

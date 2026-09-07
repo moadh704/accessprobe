@@ -67,6 +67,36 @@ scan:
     assert loaded.scan.parameters[0]["name"] == "user_id"
 
 
+def test_own_ids_coerce_yaml_integers(tmp_path: Path) -> None:
+    cfg = tmp_path / "scan.yaml"
+    cfg.write_text(
+        """
+sessions:
+  - name: alice
+    cookies:
+      session: alice
+scan:
+  target:
+    url: "http://127.0.0.1/profile"
+  original_role: alice
+  test_roles:
+    - bob
+  own_ids:
+    alice: [1, 10]
+    bob: 2
+  privileged_roles: admin
+  parameters:
+    - name: user_id
+      location: query
+      value: 1
+"""
+    )
+    loaded = load_config(cfg)
+    assert loaded.scan is not None
+    assert loaded.scan.own_ids == {"alice": ["1", "10"], "bob": ["2"]}
+    assert loaded.scan.privileged_roles == ["admin"]
+
+
 def test_missing_config(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_config(tmp_path / "nope.yaml")

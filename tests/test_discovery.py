@@ -58,3 +58,25 @@ def test_unique_discovered() -> None:
     d.discover_from_url("https://x.com?user_id=2")
     unique = d.get_all_discovered(unique=True)
     assert len([p for p in unique if p.name == "user_id"]) == 1
+
+
+def test_noise_names_not_interesting() -> None:
+    d = ParameterDiscoverer()
+    for noise in ("hidden", "valid", "width", "invalid", "video", "grid"):
+        assert d._is_interesting_name(noise) is False
+    for good in ("id", "user_id", "userId", "account-id", "uid", "order_id"):
+        assert d._is_interesting_name(good) is True
+    html = '<form><input name="hidden" value="x"/><input name="user_id" value="1"/></form>'
+    names = {p.name for p in ParameterDiscoverer().discover_from_html(html)}
+    assert "hidden" not in names
+    assert "user_id" in names
+
+
+def test_js_does_not_extract_id_from_order_id() -> None:
+    params = ParameterDiscoverer().discover_from_javascript(
+        'const user_id = "1"; const order_id = 100;'
+    )
+    names = {p.name for p in params}
+    assert "user_id" in names
+    assert "order_id" in names
+    assert "id" not in names

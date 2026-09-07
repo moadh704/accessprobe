@@ -2,25 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
-import pytest
-
-from accessprobe.cli import parse_own_ids
-from accessprobe.detector import IDORDetector
-from accessprobe.models import Finding, FindingSeverity, Parameter, ParameterLocation
+from accessprobe.cli import parse_header_args, parse_own_ids
+from accessprobe.models import Finding, FindingSeverity, Parameter, ParameterLocation, UserSession
 from accessprobe.session import SessionManager
 from accessprobe.tester import IDORTester
-from accessprobe.models import UserSession
-
-
-def mock_resp(code: int, body: str) -> MagicMock:
-    r = MagicMock()
-    r.status_code = code
-    r.content = body.encode()
-    r.text = body
-    r.headers = {}
-    return r
 
 
 def test_parse_own_ids() -> None:
@@ -30,6 +15,14 @@ def test_parse_own_ids() -> None:
     }
     assert parse_own_ids(None) == {}
     assert parse_own_ids("") == {}
+
+
+def test_parse_header_args() -> None:
+    assert parse_header_args(["Authorization: Bearer abc", "X-Role: user"]) == {
+        "Authorization": "Bearer abc",
+        "X-Role": "user",
+    }
+    assert parse_header_args([]) == {}
 
 
 def test_suppress_self_access() -> None:
@@ -48,6 +41,7 @@ def test_suppress_self_access() -> None:
     out = tester._apply_context_filters(finding, test_role="bob", test_value="2")
     assert out.is_vulnerable is False
     assert out.details.get("suppressed") == "self_access"
+    assert out.severity == FindingSeverity.LOW
 
 
 def test_suppress_privileged_role() -> None:
@@ -65,6 +59,7 @@ def test_suppress_privileged_role() -> None:
     out = tester._apply_context_filters(finding, test_role="admin", test_value="1")
     assert out.is_vulnerable is False
     assert out.details.get("suppressed") == "privileged_role"
+    assert out.severity == FindingSeverity.LOW
 
 
 def test_noise_candidates_filtered() -> None:
@@ -79,6 +74,19 @@ def test_noise_candidates_filtered() -> None:
     assert "email" not in as_str
     assert "1" in as_str
     assert "2" in as_str  # +1 mutation
+
+
+def test_phone_numbers_not_used_as_ids() -> None:
+    sm = SessionManager()
+    tester = IDORTester(sm)
+    values = tester._generate_candidate_values(
+        "1",
+        '{"user_id":1,"phone":"+10000000001","email":"alice@lab.local"}',
+    )
+    as_str = {str(v) for v in values}
+    assert "10000000001" not in as_str
+    assert "1" in as_str
+    assert "2" in as_str
 
 
 def test_keep_true_horizontal_idor() -> None:

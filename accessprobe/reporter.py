@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Template
+from jinja2 import BaseLoader, Environment
 
 from .models import TestResult
 
@@ -62,7 +62,7 @@ class ReportGenerator:
         return json.dumps(self.to_dict(), indent=indent, default=str)
 
     def save_json(self, filepath: str | Path) -> None:
-        Path(filepath).write_text(self.to_json())
+        Path(filepath).write_text(self.to_json(), encoding="utf-8")
 
     def generate_html(self) -> str:
         template_str = """
@@ -80,7 +80,7 @@ class ReportGenerator:
                 }
                 
                 body {
-                    font-family: 'Inter', system_ui, sans-serif;
+                    font-family: 'Inter', system-ui, sans-serif;
                     background: #0f172a;
                     color: #e2e8f0;
                     margin: 0;
@@ -239,12 +239,13 @@ class ReportGenerator:
         </html>
         """
 
-        template = Template(template_str)
+        env = Environment(loader=BaseLoader(), autoescape=True)
+        template = env.from_string(template_str)
         data = self.to_dict()
         return str(template.render(**data))
 
     def save_html(self, filepath: str | Path) -> None:
-        Path(filepath).write_text(self.generate_html())
+        Path(filepath).write_text(self.generate_html(), encoding="utf-8")
 
     def print_summary(self) -> None:
         data = self.to_dict()

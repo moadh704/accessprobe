@@ -4,10 +4,23 @@ from __future__ import annotations
 
 import difflib
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
 from .models import Finding, FindingSeverity, Parameter
+
+_SUCCESS = {200, 201, 202}
+_DENIED = {401, 403, 404}
+_LOGIN_PATHS = ("/login", "/signin", "/sign-in", "/log-in", "/sign_in", "/auth/login")
+_LOGIN_BODY = (
+    "please log in",
+    "please login",
+    "please sign in",
+    "login required",
+    "sign in to continue",
+    "authentication required",
+)
 
 
 class IDORDetector:
@@ -74,8 +87,8 @@ class IDORDetector:
         if not original_response or not modified_response:
             return self._failed_analysis()
 
-        orig_code = original_response.status_code
-        mod_code = modified_response.status_code
+        orig_code = self._effective_status(original_response)
+        mod_code = self._effective_status(modified_response)
         orig_len = len(original_response.content)
         mod_len = len(modified_response.content)
         orig_text = original_response.text[:4000].lower()
@@ -96,7 +109,7 @@ class IDORDetector:
 
         # Rule 1: Privilege escalation via status codes
         if status_changed:
-            if mod_code in (200, 201, 202) and orig_code in (401, 403, 404):
+            if mod_code in _SUCCESS and orig_code in _DENIED:
                 is_vulnerable = True
                 confidence = 0.93
                 reasons.append(
@@ -104,7 +117,7 @@ class IDORDetector:
                     f"but {test_role} allowed ({mod_code})"
                 )
                 severity = FindingSeverity.HIGH
-            elif mod_code == 200 and orig_code not in (200, 201, 202):
+            elif mod_code == 200 and orig_code not in _SUCCESS:
                 is_vulnerable = True
                 confidence = 0.80
                 reasons.append("Only higher-privilege role received successful response")
@@ -178,11 +191,17 @@ class IDORDetector:
                 if severity == FindingSeverity.LOW:
                     severity = FindingSeverity.MEDIUM
 
-        # Rule 5: Large structural difference with success on one side
-        if length_diff > 1200 and similarity < 0.50 and (orig_code == 200 or mod_code == 200):
+        # Rule 5: Large structural difference with success on BOTH sides.
+        # A 200 vs 401/403/404 size gap is expected access control, not IDOR.
+        if (
+            length_diff > 1200
+            and similarity < 0.50
+            and orig_code in _SUCCESS
+            and mod_code in _SUCCESS
+        ):
             is_vulnerable = True
             confidence = max(confidence, 0.68)
-            reasons.append("Significant content difference between roles")
+            reasons.append("Significant content difference between successful responses")
             if severity == FindingSeverity.LOW:
                 severity = FindingSeverity.MEDIUM
 
@@ -230,6 +249,8 @@ class IDORDetector:
             "length_diff": length_diff,
             "value_changed": value_changed,
             "same_role": same_role,
+            "effective_original_status": orig_code,
+            "effective_modified_status": mod_code,
         }
 
     def create_finding(
@@ -255,6 +276,39 @@ class IDORDetector:
                 "same_role": analysis.get("same_role", False),
             },
         )
+
+    def _effective_status(self, response: httpx.Response) -> int:
+        """Map login redirects (302 → /login 200) to 401 so they are not IDOR."""
+        code = int(response.status_code)
+        history = getattr(response, "history", None)
+        if not isinstance(history, (list, tuple)) or not history:
+            return code
+
+        final_path = urlparse(str(getattr(response, "url", ""))).path
+        if self._is_login_path(final_path):
+            return 401
+
+        for hop in history:
+            headers = getattr(hop, "headers", None) or {}
+            try:
+                loc = str(headers.get("location", "") or headers.get("Location", ""))
+            except Exception:
+                loc = ""
+            if self._is_login_path(urlparse(loc).path if "://" in loc else loc):
+                return 401
+
+        text = (getattr(response, "text", "") or "")[:2000].lower()
+        if any(marker in text for marker in _LOGIN_BODY):
+            return 401
+        return code
+
+    @staticmethod
+    def _is_login_path(path: str) -> bool:
+        """True for /login, /signin, … — not substring hits like /login-history."""
+        cleaned = (path or "").split("?")[0].rstrip("/").lower()
+        if not cleaned:
+            return False
+        return any(cleaned == p or cleaned.endswith(p) for p in _LOGIN_PATHS)
 
     def _looks_like_error(self, text: str) -> bool:
         return any(kw in text for kw in self.ERROR_KEYWORDS)
