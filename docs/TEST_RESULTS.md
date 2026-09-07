@@ -3,8 +3,8 @@
 | | |
 |--|--|
 | Version | 0.4.1 |
-| Date | 2026-08-05 |
-| Environment | Windows · Python 3.14 · Node 24 · `127.0.0.1` only |
+| Date | 2026-09-07 |
+| Environment | Local sandbox · Python 3.12 · `127.0.0.1` only |
 | Targets | Local IDOR lab + local OWASP Juice Shop 19.2.1 |
 
 No external or production systems were scanned.
@@ -15,7 +15,7 @@ No external or production systems were scanned.
 
 | Area | Result |
 |------|--------|
-| Unit / integration tests | 38/38 passed |
+| Unit / integration tests | 48/48 passed |
 | Horizontal IDOR (broken ACL) | Detected (high confidence) |
 | Secure ACL foreign IDs | Not flagged |
 | Self-access / intended admin (with context) | Suppressed → **0** vulnerable findings on secure lab |
@@ -55,7 +55,7 @@ Ground truth checked with curl/httpx before trusting the scanner.
 
 ```text
 $ pytest -q
-38 passed
+48 passed
 ```
 
 ## Local IDOR lab
@@ -136,7 +136,7 @@ Non-owned order IDs flagged (up to conf. 1.00). Alice’s owned IDs (100/101) su
 
 ### Discovery
 
-From `GET /` with `session=alice`: `user_id`, `account_id`, `order_id`, `id` (4 params).
+From `GET /` with `session=alice`: `user_id`, `account_id`, `order_id` (3 params). Bare `id` is no longer extracted from names like `order_id`.
 
 ## Juice Shop (local)
 
@@ -164,11 +164,16 @@ Outputs: `labs/results/juice_shop/`.
 
 | Case | Result |
 |------|--------|
-| Path parameters | OK (needs `{name}` in URL) |
+| Path parameters | OK (`{name}` or existing path-segment ID, including `/users/8/profile`) |
+| Query sibling params | Other query keys kept when the tested ID changes |
 | Missing config file | Clear error |
 | No session (lab) | 401, no false IDORs |
 | `--own-ids` / `--privileged-roles` | OK |
-| Field-name / date candidates | Mostly filtered in v0.4 |
+| `--header` (JWT) | Applied to the original role |
+| YAML `own_ids: alice: [1]` | Coerced to strings |
+| Login 302 → /login 200 | Mapped to 401, not IDOR |
+| `/login-history` | Not treated as a login page |
+| Phone / UUID fragment candidates | Filtered |
 | JSON / HTML reports | OK |
 
 No crashes in this run.

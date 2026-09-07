@@ -38,6 +38,16 @@ def parse_cookie_string(cookie_str: str) -> dict[str, str]:
     return cookies
 
 
+def parse_header_args(headers: Sequence[str] | None) -> dict[str, str]:
+    """Parse repeated ``Name:Value`` flags."""
+    result: dict[str, str] = {}
+    for h in headers or []:
+        if ":" in h:
+            k, v = h.split(":", 1)
+            result[k.strip()] = v.strip()
+    return result
+
+
 def parse_own_ids(spec: str | None) -> dict[str, list[str]]:
     """Parse ``alice=1,10;bob=2`` into ``{alice: [1,10], bob: [2]}``."""
     if not spec:
@@ -91,6 +101,14 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser.add_argument("--test-roles", nargs="+", help="Roles to test against")
     scan_parser.add_argument(
         "--cookie", help="Cookie string for original role (key=val; key2=val2)"
+    )
+    scan_parser.add_argument(
+        "--header",
+        action="append",
+        default=[],
+        metavar="Name:Value",
+        help="Extra header for the original role (repeatable). Example: "
+        "'Authorization: Bearer eyJ...'",
     )
     scan_parser.add_argument("--report", help="Save JSON report path")
     scan_parser.add_argument("--html-report", help="Save HTML report path")
@@ -169,6 +187,7 @@ async def run_scan(args: argparse.Namespace) -> int:
     method = "GET"
     own_ids: dict[str, list[str]] = {}
     privileged_roles: list[str] = []
+    extra_headers = parse_header_args(getattr(args, "header", None))
 
     if args.config:
         try:
@@ -234,8 +253,13 @@ async def run_scan(args: argparse.Namespace) -> int:
         target_url = args.url
 
         session_manager.add_session(
-            UserSession(name=original_role, cookies=original_cookies)
+            UserSession(
+                name=original_role,
+                cookies=original_cookies,
+                headers=dict(extra_headers),
+            )
         )
+        extra_headers = {}  # already applied
         for role in test_roles:
             if role not in session_manager:
                 session_manager.add_session(UserSession(name=role, cookies={}))
@@ -249,6 +273,11 @@ async def run_scan(args: argparse.Namespace) -> int:
                     value=args.value,
                 )
             )
+
+    if extra_headers:
+        orig_session = session_manager.get_session(original_role)
+        if orig_session is not None:
+            orig_session.headers.update(extra_headers)
 
     # Optional auto-discovery
     if args.discover:
@@ -425,11 +454,7 @@ async def run_discover(args: argparse.Namespace) -> int:
 
     sm = SessionManager()
     cookies = parse_cookie_string(args.cookie) if args.cookie else {}
-    headers: dict[str, str] = {}
-    for h in args.header or []:
-        if ":" in h:
-            k, v = h.split(":", 1)
-            headers[k.strip()] = v.strip()
+    headers = parse_header_args(args.header)
     sm.add_session(UserSession(name="default", cookies=cookies, headers=headers))
 
     try:
@@ -469,15 +494,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.print_help()
         sys.exit(0)
 
-    if args.command == "scan":
-        code = asyncio.run(run_scan(args))
-        sys.exit(code)
-    elif args.command == "discover":
-        code = asyncio.run(run_discover(args))
-        sys.exit(code)
-    else:
-        parser.print_help()
-        sys.exit(1)
+    try:
+        if args.command == "scan":
+            code = asyncio.run(run_scan(args))
+            sys.exit(code)
+        elif args.command == "discover":
+            code = asyncio.run(run_discover(args))
+            sys.exit(code)
+        else:
+            parser.print_help()
+            sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted[/yellow]")
+        sys.exit(130)
 
 
 if __name__ == "__main__":

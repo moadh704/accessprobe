@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from accessprobe.cli import parse_own_ids
+from accessprobe.cli import parse_header_args, parse_own_ids
 from accessprobe.models import Finding, FindingSeverity, Parameter, ParameterLocation, UserSession
 from accessprobe.session import SessionManager
 from accessprobe.tester import IDORTester
@@ -15,6 +15,14 @@ def test_parse_own_ids() -> None:
     }
     assert parse_own_ids(None) == {}
     assert parse_own_ids("") == {}
+
+
+def test_parse_header_args() -> None:
+    assert parse_header_args(["Authorization: Bearer abc", "X-Role: user"]) == {
+        "Authorization": "Bearer abc",
+        "X-Role": "user",
+    }
+    assert parse_header_args([]) == {}
 
 
 def test_suppress_self_access() -> None:
@@ -66,6 +74,19 @@ def test_noise_candidates_filtered() -> None:
     assert "email" not in as_str
     assert "1" in as_str
     assert "2" in as_str  # +1 mutation
+
+
+def test_phone_numbers_not_used_as_ids() -> None:
+    sm = SessionManager()
+    tester = IDORTester(sm)
+    values = tester._generate_candidate_values(
+        "1",
+        '{"user_id":1,"phone":"+10000000001","email":"alice@lab.local"}',
+    )
+    as_str = {str(v) for v in values}
+    assert "10000000001" not in as_str
+    assert "1" in as_str
+    assert "2" in as_str
 
 
 def test_keep_true_horizontal_idor() -> None:

@@ -126,3 +126,9 @@ scan:
     data = json.loads(report.read_text())
     assert data["total_tests"] >= 1
     assert "Scan finished" in r.stdout
+
+
+def test_scan_help_lists_header_flag() -> None:
+    r = _run("scan", "--help")
+    assert r.returncode == 0
+    assert "--header" in r.stdout

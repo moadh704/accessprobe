@@ -80,7 +80,7 @@ class ReportGenerator:
                 }
                 
                 body {
-                    font-family: 'Inter', system_ui, sans-serif;
+                    font-family: 'Inter', system-ui, sans-serif;
                     background: #0f172a;
                     color: #e2e8f0;
                     margin: 0;

@@ -19,7 +19,7 @@ Steps to validate AccessProbe and keep results reproducible on `127.0.0.1`.
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Unit tests | Done (33/33) |
+| 1 | Unit tests | Done (48/48) |
 | 2 | Local IDOR lab | Done |
 | 3 | Accuracy analysis | Done |
 | 4 | Juice Shop (local) | Done; DVWA / PortSwigger optional |
@@ -36,7 +36,7 @@ pip install -e ".[dev]"
 pytest -q
 ```
 
-Expect: `38 passed`.
+Expect: `48 passed`.
 
 ## Phase 2 — Local IDOR lab
 

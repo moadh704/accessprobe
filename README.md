@@ -6,13 +6,13 @@ Validated on a local multi-user lab and OWASP Juice Shop (`127.0.0.1` only).
 
 [![Version](https://img.shields.io/badge/version-0.4.1-cyan)](https://github.com/moadh704/accessprobe)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-38%20passed-brightgreen)](https://github.com/moadh704/accessprobe)
+[![Tests](https://img.shields.io/badge/tests-48%20passed-brightgreen)](https://github.com/moadh704/accessprobe)
 
 ## Results (v0.4.1)
 
 | Check | Result |
 |-------|--------|
-| Tests | 38/38 passed |
+| Tests | 48/48 passed |
 | Broken lab profile (horizontal IDOR) | Detected (confidence 1.00) |
 | Secure lab profile (correct ACL) | 0 false positives with `own_ids` + `privileged_roles` |
 | Juice Shop basket path IDOR | Detected (confidence 1.00) |
@@ -71,7 +71,7 @@ accessprobe scan \
   --report out.json
 ```
 
-Path parameters need a `{name}` placeholder:
+Path parameters need a `{name}` placeholder, or a URL that already contains the ID as a path segment:
 
 ```bash
 accessprobe scan \
@@ -115,6 +115,7 @@ CLI: `--own-ids alice=1;bob=2` and `--privileged-roles admin`.
 | `--own-ids` | Ownership map |
 | `--privileged-roles` | Privileged roles |
 | `--location query\|path\|body\|header\|cookie` | Parameter placement |
+| `--header "Name: Value"` | Extra header (JWT `Authorization: Bearer …`) |
 | `--discover` | Discover parameters during scan |
 
 Exit codes: `0` scan completed with no findings, `1` config/runtime error, `2` potential IDORs found.
@@ -146,7 +147,7 @@ See [labs/idor_lab/README.md](labs/idor_lab/README.md) and [labs/juice_shop/READ
 
 ```bash
 pip install -e ".[dev]"
-pytest -q   # 38 passed
+pytest -q   # 48 passed
 ```
 
 ## Layout
